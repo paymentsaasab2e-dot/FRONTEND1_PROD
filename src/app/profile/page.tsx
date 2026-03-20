@@ -341,9 +341,25 @@ export default function ProfilePage() {
           'Content-Type': 'application/json',
         },
       })
-        .then((response) => {
-          if (response.ok) {
-            return response.json();
+        .then(async (response) => {
+          if (response.ok) return response.json();
+
+          if (response.status === 404) {
+            await fetch(`${API_BASE_URL}/cv-analysis/analyze`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ candidateId }),
+            });
+
+            const retry = await fetch(`${API_BASE_URL}/cv-analysis/${candidateId}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            if (retry.ok) return retry.json();
           }
           return null;
         })
@@ -440,12 +456,29 @@ export default function ProfilePage() {
       if (!candidateId) return;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/cv-analysis/${candidateId}`, {
+        let response = await fetch(`${API_BASE_URL}/cv-analysis/${candidateId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
+
+        if (response.status === 404) {
+          await fetch(`${API_BASE_URL}/cv-analysis/analyze`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ candidateId }),
+          });
+
+          response = await fetch(`${API_BASE_URL}/cv-analysis/${candidateId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+        }
 
         if (response.ok) {
           const result = await response.json();
