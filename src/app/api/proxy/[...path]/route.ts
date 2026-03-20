@@ -16,6 +16,8 @@ async function proxyRequest(req: NextRequest, pathParts: string[]) {
   const headers = new Headers(req.headers);
   headers.delete('host');
   headers.delete('origin');
+  // Let upstream return uncompressed payload to avoid decode mismatches.
+  headers.delete('accept-encoding');
 
   const method = req.method.toUpperCase();
   const hasBody = !['GET', 'HEAD'].includes(method);
@@ -30,8 +32,11 @@ async function proxyRequest(req: NextRequest, pathParts: string[]) {
   } as RequestInit & { duplex?: 'half' });
 
   const respHeaders = new Headers(response.headers);
-  // Avoid passing compressed length mismatch through proxy
+  // Avoid passing compression/length headers that can mismatch proxied body.
   respHeaders.delete('content-length');
+  respHeaders.delete('content-encoding');
+  respHeaders.delete('transfer-encoding');
+  respHeaders.delete('connection');
 
   return new NextResponse(response.body, {
     status: response.status,
