@@ -35,7 +35,7 @@ export default function CoursesPage() {
     {
       id: 1,
       title: 'Agile Project Management Fundamentals',
-      provider: 'SAASA',
+      provider: 'SAASAaaaaa',
       duration: '4 weeks',
       price: 'Free',
       description: 'Learn the core principles and practices of Agile methodology to efficiently manage projects and deliver value.',
