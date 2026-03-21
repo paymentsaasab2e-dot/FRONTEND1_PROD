@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const DEFAULT_BACKEND_BASE = 'http://bdmsvisfyzyyr2qdfzvdy9om.187.124.169.162.sslip.io/api';
+// Local Next dev: forward to your machine’s API. Production / Vercel: set BACKEND_INTERNAL_URL or use hosted default.
+const HOSTED_BACKEND_BASE =
+  'http://bdmsvisfyzyyr2qdfzvdy9om.187.124.169.162.sslip.io/api';
+const LOCAL_BACKEND_BASE = 'http://127.0.0.1:5000/api';
 
-const backendBase = (process.env.BACKEND_INTERNAL_URL || DEFAULT_BACKEND_BASE).replace(/\/$/, '');
+const defaultBackendBase =
+  process.env.NODE_ENV === 'development' ? LOCAL_BACKEND_BASE : HOSTED_BACKEND_BASE;
+
+const backendBase = (process.env.BACKEND_INTERNAL_URL || defaultBackendBase).replace(/\/$/, '');
 
 const buildTargetUrl = (req: NextRequest, pathParts: string[]) => {
   const pathname = pathParts.join('/');

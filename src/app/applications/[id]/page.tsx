@@ -11,8 +11,10 @@ interface TimelineEvent {
   date: string;
   time: string;
   description: string;
-  icon: 'document' | 'review' | 'star' | 'check' | 'x';
+  icon: 'document' | 'review' | 'star' | 'check' | 'x' | 'calendar';
   completed: boolean;
+  interviewType?: 'online' | 'walk-in';
+  joinUrl?: string;
 }
 
 interface CommunicationUpdate {
@@ -60,6 +62,15 @@ const getStatusIcon = (iconType: string) => {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      );
+    case 'calendar':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 2v4"></path>
+          <path d="M16 2v4"></path>
+          <rect width="18" height="18" x="3" y="4" rx="2"></rect>
+          <path d="M3 10h18"></path>
         </svg>
       );
     default:
@@ -138,6 +149,63 @@ export default function ApplicationStatusPage() {
     },
   ];
 
+  const mockInterviews = [
+    {
+      id: 'int-1',
+      jobTitle: 'Senior Frontend Developer',
+      company: 'SAASA Tech Solutions',
+      interviewDateTime: '2024-08-18T11:30:00',
+      interviewType: 'online' as const,
+      status: 'Scheduled',
+      joinUrl: 'https://meet.google.com/abc-defg-hij',
+    },
+    {
+      id: 'int-2',
+      jobTitle: 'UI Engineer',
+      company: 'BlueOrbit Labs',
+      interviewDateTime: '2024-08-19T14:00:00',
+      interviewType: 'walk-in' as const,
+      status: 'Rescheduled',
+    },
+  ];
+
+  const matchingInterview = mockInterviews.find(
+    (interview) =>
+      interview.jobTitle.toLowerCase() === applicationData.jobTitle.toLowerCase() ||
+      interview.company.toLowerCase() === applicationData.company.toLowerCase()
+  );
+
+  const timelineEventsWithInterview: TimelineEvent[] = matchingInterview
+    ? timelineEvents.reduce<TimelineEvent[]>((acc, event) => {
+        acc.push(event);
+        if (event.status === 'Shortlisted') {
+          const interviewDate = new Date(matchingInterview.interviewDateTime);
+          acc.push({
+            id: `interview-${matchingInterview.id}`,
+            status:
+              matchingInterview.status === 'Rescheduled'
+                ? 'Interview Rescheduled'
+                : 'Interview Scheduled',
+            date: interviewDate.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            }),
+            time: interviewDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            description: `Your interview has been scheduled with ${matchingInterview.company}.`,
+            icon: 'calendar',
+            completed: true,
+            interviewType: matchingInterview.interviewType,
+            joinUrl: matchingInterview.joinUrl,
+          });
+        }
+        return acc;
+      }, [])
+    : timelineEvents;
+
   const emailUpdates: CommunicationUpdate[] = [
     {
       id: '1',
@@ -200,14 +268,26 @@ export default function ApplicationStatusPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ background: '#F8F9FA' }}>
+    <div
+      className="min-h-screen"
+      style={{
+        background:
+          'linear-gradient(135deg, #e0f2fe 0%, #ecf7fd 12%, #fafbfb 30%, #fdf6f0 55%, #fef5ed 85%, #fef5ed 100%)',
+      }}
+    >
       <Header />
+      <style>{`
+        @keyframes slideInDrawer {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
       
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main className="mx-auto max-w-[1320px] px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
         {/* Back Button */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 text-sm font-medium"
         >
           <svg
             width="20"
@@ -224,14 +304,14 @@ export default function ApplicationStatusPage() {
           Back to Applications
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Main Content */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             {/* Job Title and Company */}
-            <div className="bg-white rounded-lg p-6 mb-6 shadow-sm" style={{ boxShadow: '0 3px 6px 0 rgba(18, 15, 40, 0.12)' }}>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{applicationData.jobTitle}</h1>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2 tracking-tight">{applicationData.jobTitle}</h1>
               <div className="flex items-center gap-4 text-gray-600 mb-4">
-                <span className="font-medium">{applicationData.company}</span>
+                <span className="font-medium text-gray-700">{applicationData.company}</span>
                 <span>•</span>
                 <span>{applicationData.location}</span>
               </div>
@@ -261,7 +341,7 @@ export default function ApplicationStatusPage() {
                 {applicationData.status === 'Selected' && (
                   <button
                     onClick={() => setIsSelectedModalOpen(true)}
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    className="rounded-xl bg-[#28A8E1] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 transition"
                   >
                     View Offer Details
                   </button>
@@ -270,45 +350,54 @@ export default function ApplicationStatusPage() {
             </div>
 
             {/* Application Timeline */}
-            <div className="bg-white rounded-lg p-6 shadow-sm" style={{ boxShadow: '0 3px 6px 0 rgba(18, 15, 40, 0.12)' }}>
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Application Timeline</h2>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-6">Application Timeline</h2>
               
               <div className="relative">
                 {/* Timeline Line - only show between completed events */}
-                <div className="absolute left-5 top-5 bottom-0 w-0.5 bg-gray-200" style={{ height: 'calc(100% - 1.25rem)' }}></div>
+                <div className="absolute left-5 top-5 bottom-0 w-0.5 bg-gray-100" style={{ height: 'calc(100% - 1.25rem)' }}></div>
                 
-                <div className="space-y-8">
-                  {timelineEvents.map((event, index) => (
+                <div className="space-y-10">
+                  {timelineEventsWithInterview.map((event, index) => (
                     <div key={event.id} className="relative flex gap-4">
                       {/* Icon */}
                       <div className={`relative z-10 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
                         event.completed 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-gray-200 text-gray-400'
+                          ? 'bg-blue-100 text-blue-600' 
+                          : 'bg-gray-100 text-gray-400'
                       }`}>
                         {getStatusIcon(event.icon)}
                       </div>
                       
                       {/* Content */}
-                      <div className={`flex-1 ${index < timelineEvents.length - 1 ? 'pb-8' : ''}`}>
+                      <div className={`flex-1 ${index < timelineEventsWithInterview.length - 1 ? 'pb-8' : ''}`}>
                         <div className="flex items-center gap-3 mb-1">
                           {event.status === 'Selected' ? (
                             <button
                               onClick={() => setIsSelectedModalOpen(true)}
                               className="text-left"
                             >
-                              <h3 className="text-lg font-semibold text-gray-900 hover:text-green-600 hover:underline">
+                              <h3 className="text-base font-semibold text-gray-900 hover:text-green-600 hover:underline">
                                 {event.status}
                               </h3>
                             </button>
                           ) : (
-                            <h3 className="text-lg font-semibold text-gray-900">{event.status}</h3>
+                            <h3 className="text-base font-semibold text-gray-900">{event.status}</h3>
                           )}
                           <span className="text-sm text-gray-500">
                             {event.date}, {event.time}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600">{event.description}</p>
+                        <p className="text-sm text-gray-600 leading-relaxed">{event.description}</p>
+                        {event.interviewType === 'online' && event.joinUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => window.open(event.joinUrl, '_blank', 'noopener,noreferrer')}
+                            className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Join Interview
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -320,7 +409,7 @@ export default function ApplicationStatusPage() {
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
             {/* Job Snapshot */}
-            <div className="bg-white rounded-lg p-6 shadow-sm" style={{ boxShadow: '0 3px 6px 0 rgba(18, 15, 40, 0.12)' }}>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Snapshot</h3>
               <div className="space-y-3">
                 <div>
@@ -339,7 +428,7 @@ export default function ApplicationStatusPage() {
             </div>
 
             {/* Communication Updates */}
-            <div className="bg-white rounded-lg p-6 shadow-sm" style={{ boxShadow: '0 3px 6px 0 rgba(18, 15, 40, 0.12)' }}>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Communication Updates</h3>
               
               {/* Tabs */}
@@ -418,63 +507,94 @@ export default function ApplicationStatusPage() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            className="fixed inset-0 bg-gray-900/20 backdrop-blur-[1px] z-50 transition-opacity duration-300 ease-in-out"
             onClick={() => setIsSelectedModalOpen(false)}
           />
-          {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Drawer */}
+          <div className="fixed inset-0 z-50 pointer-events-none">
             <div
-              className="bg-white rounded-lg shadow-xl p-6"
+              className="absolute right-0 top-0 h-full w-full max-w-[420px] bg-white shadow-xl pointer-events-auto transform transition-transform duration-300 ease-in-out translate-x-0 flex flex-col"
               onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '672px',
-                height: '226px',
-                borderRadius: '10px',
-                boxShadow: '0 0 2px 0 rgba(23, 26, 31, 0.20), 0 0 1px 0 rgba(23, 26, 31, 0.07)',
-              }}
+              style={{ animation: 'slideInDrawer 0.3s ease-in-out' }}
             >
-              {/* Status Header */}
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900">Offer Details</h3>
+                <button
+                  type="button"
+                  onClick={() => setIsSelectedModalOpen(false)}
+                  className="h-8 w-8 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition"
+                  aria-label="Close offer details"
+                >
                   <svg
-                    width="16"
-                    height="16"
+                    width="18"
+                    height="18"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="white"
-                    strokeWidth="3"
+                    stroke="currentColor"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    className="mx-auto"
                   >
-                    <polyline points="20 6 9 17 4 12"></polyline>
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
                   </svg>
-                </div>
-                <span className="text-lg font-semibold text-green-600">Selected</span>
+                </button>
               </div>
 
-              {/* Main Message */}
-              <p className="text-base text-gray-900 mb-3">
-                Congratulations! You have been selected for the {applicationData.jobTitle} role at {applicationData.company}.
-              </p>
+              <div className="px-6 py-6 overflow-y-auto flex-1">
+                {/* Status Header */}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <span className="text-lg font-semibold text-green-600">Selected</span>
+                </div>
 
-              {/* Timestamp */}
-              <p className="text-sm text-gray-500 mb-4">
-                {timelineEvents.find(e => e.status === 'Selected')?.date}, {timelineEvents.find(e => e.status === 'Selected')?.time}
-              </p>
+                {/* Main Message */}
+                <p className="text-base text-gray-900 mb-3 leading-relaxed">
+                  Congratulations! You have been selected for the {applicationData.jobTitle} role at {applicationData.company}.
+                </p>
 
-              {/* Instructions */}
-              <p className="text-sm text-gray-900">
-                The employer will contact you soon to discuss the next steps. Please ensure your contact details are up to date.
-              </p>
+                {/* Timestamp */}
+                <p className="text-sm text-gray-500 mb-4">
+                  {timelineEvents.find(e => e.status === 'Selected')?.date}, {timelineEvents.find(e => e.status === 'Selected')?.time}
+                </p>
 
-              {/* Close Button */}
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setIsSelectedModalOpen(false)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Close
-                </button>
+                {/* Instructions */}
+                <p className="text-sm text-gray-900 leading-relaxed">
+                  The employer will contact you soon to discuss the next steps. Please ensure your contact details are up to date.
+                </p>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="px-6 py-4 border-t border-gray-100 bg-white">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    className="w-full rounded-xl bg-[#28A8E1] px-4 py-3 text-sm font-semibold text-white hover:opacity-95 transition duration-200"
+                  >
+                    Accept Offer
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition duration-200"
+                  >
+                    Reject Offer
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -25,6 +25,16 @@ interface Application {
   matchScore: number;
 }
 
+interface InterviewItem {
+  id: string;
+  jobTitle: string;
+  company: string;
+  interviewDateTime: string;
+  interviewType: 'online' | 'walk-in';
+  status: 'Scheduled' | 'Rescheduled' | 'Completed' | 'Cancelled';
+  joinUrl?: string;
+}
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Under Review':
@@ -65,6 +75,33 @@ const DATE_OPTIONS = ['All Time', 'Last 7 Days', 'Last 30 Days', 'Last 3 Months'
 const PAGE_BG =
   'linear-gradient(135deg, #e0f2fe 0%, #ecf7fd 12%, #fafbfb 30%, #fdf6f0 55%, #fef5ed 85%, #fef5ed 100%)';
 
+const MOCK_APPLICATIONS: Application[] = [
+  {
+    id: 'mock-app-1',
+    jobTitle: 'Frontend Developer',
+    company: 'Google',
+    status: 'Submitted',
+    appliedDate: '2026-03-14',
+    matchScore: 82,
+  },
+  {
+    id: 'mock-app-2',
+    jobTitle: 'UI Engineer',
+    company: 'NovaTech',
+    status: 'Under Review',
+    appliedDate: '2026-03-10',
+    matchScore: 76,
+  },
+  {
+    id: 'mock-app-3',
+    jobTitle: 'Product Designer',
+    company: 'BlueOrbit',
+    status: 'Submitted',
+    appliedDate: '2026-03-08',
+    matchScore: 71,
+  },
+];
+
 function isWithinDateFilter(appliedDateStr: string, filter: string): boolean {
   if (filter === 'All Time') return true;
   const applied = new Date(appliedDateStr);
@@ -97,6 +134,7 @@ function isWithinDateFilter(appliedDateStr: string, filter: string): boolean {
 
 export default function ApplicationsPage() {
   const router = useRouter();
+  const [activeSection, setActiveSection] = useState<'applications' | 'interviews'>('applications');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [dateFilter, setDateFilter] = useState('All Time');
@@ -106,6 +144,25 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [candidateMissing, setCandidateMissing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [interviews] = useState<InterviewItem[]>([
+    {
+      id: 'int-1',
+      jobTitle: 'Frontend Developer',
+      company: 'NovaTech Systems',
+      interviewDateTime: '2026-03-28T10:00:00',
+      interviewType: 'online',
+      status: 'Scheduled',
+      joinUrl: 'https://meet.google.com/abc-defg-hij',
+    },
+    {
+      id: 'int-2',
+      jobTitle: 'UI Engineer',
+      company: 'BlueOrbit Labs',
+      interviewDateTime: '2026-03-30T14:30:00',
+      interviewType: 'walk-in',
+      status: 'Rescheduled',
+    },
+  ]);
 
   useEffect(() => {
     const candidateId =
@@ -142,9 +199,10 @@ export default function ApplicationsPage() {
         }
 
         if (!cancelled && success && Array.isArray(data)) {
-          setApplications(data as Application[]);
+          const loadedApplications = data as Application[];
+          setApplications(loadedApplications.length > 0 ? loadedApplications : MOCK_APPLICATIONS);
         } else if (!cancelled) {
-          setApplications([]);
+          setApplications(MOCK_APPLICATIONS);
         }
       } catch (e) {
         if (!cancelled) {
@@ -188,11 +246,52 @@ export default function ApplicationsPage() {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
+  const formatInterviewDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const getInterviewStatusColor = (status: InterviewItem['status']) => {
+    switch (status) {
+      case 'Scheduled':
+        return 'bg-blue-100 text-blue-700';
+      case 'Rescheduled':
+        return 'bg-amber-100 text-amber-700';
+      case 'Completed':
+        return 'bg-green-100 text-green-700';
+      case 'Cancelled':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const filteredInterviews = useMemo(() => {
+    return interviews.filter((item) => {
+      const matchesSearch =
+        searchQuery === '' ||
+        item.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.company.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [interviews, searchQuery]);
+
   const renderApplicationCard = (application: Application) => {
     const score =
       application.matchScore != null && application.matchScore > 0
         ? `${Math.round(application.matchScore)}%`
         : '—';
+    const matchingInterview = interviews.find(
+      (interview) =>
+        interview.jobTitle.toLowerCase() === application.jobTitle.toLowerCase() ||
+        interview.company.toLowerCase() === application.company.toLowerCase()
+    );
 
     return (
       <div
@@ -212,6 +311,23 @@ export default function ApplicationsPage() {
             {application.status}
           </span>
         </div>
+
+        {matchingInterview ? (
+          <div className="mt-3 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${getInterviewStatusColor(
+                  matchingInterview.status
+                )}`}
+              >
+                Interview: {matchingInterview.status}
+              </span>
+            </div>
+            <p className="mt-1.5 text-xs text-gray-600">
+              {formatInterviewDateTime(matchingInterview.interviewDateTime)}
+            </p>
+          </div>
+        ) : null}
 
         <div className="mt-3 text-sm text-gray-600">
           <p>Applied: {formatDate(application.appliedDate)}</p>
@@ -278,8 +394,35 @@ export default function ApplicationsPage() {
               </div>
             ) : null}
 
-            {/* Search and Filters */}
-            <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-100">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 p-1.5 border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setActiveSection('applications')}
+                className={`px-5 py-2.5 rounded-full text-sm font-semibold transition duration-200 ${
+                  activeSection === 'applications'
+                    ? 'bg-[#28A8E1] text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Applications
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('interviews')}
+                className={`px-5 py-2.5 rounded-full text-sm font-semibold transition duration-200 ${
+                  activeSection === 'interviews'
+                    ? 'bg-[#28A8E1] text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Interviews
+              </button>
+            </div>
+
+            {activeSection === 'applications' ? (
+              <>
+                {/* Search and Filters */}
+                <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-100">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* Search Bar */}
                 <div className="flex-1 relative group">
@@ -447,6 +590,138 @@ export default function ApplicationsPage() {
                   </button>
                 ) : null}
               </div>
+                )}
+              </>
+            ) : (
+              <>
+                {filteredInterviews.length > 0 ? (
+                  <div className="space-y-8">
+                    <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-5 sm:p-6">
+                      <p className="text-xs tracking-widest text-gray-400 font-bold uppercase">Upcoming Interview</p>
+                      <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="text-xl font-bold text-gray-900 truncate">{filteredInterviews[0].jobTitle}</h3>
+                          <p className="text-sm text-gray-500 mt-1 truncate">{filteredInterviews[0].company}</p>
+                          <p className="text-sm text-gray-600 mt-2">
+                            {formatInterviewDateTime(filteredInterviews[0].interviewDateTime)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="rounded-lg bg-[#28A8E1] px-5 py-3 text-sm font-semibold text-white hover:opacity-95 transition duration-200 active:scale-95"
+                        >
+                          Join Interview
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {filteredInterviews.map((interview) => (
+                        <div
+                          key={interview.id}
+                          className="w-full h-full p-6 rounded-2xl bg-white border border-gray-200 relative flex flex-col shadow-sm"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="h-11 w-11 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0284C7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                              </svg>
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="text-xl font-bold text-gray-900">{interview.jobTitle}</h3>
+                              <p className="text-sm text-gray-500 mt-1">{interview.company}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-5 text-sm text-gray-600 space-y-2">
+                            <p className="flex items-center gap-2">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                              </svg>
+                              <span>{formatInterviewDateTime(interview.interviewDateTime)}</span>
+                            </p>
+                            <p className="flex items-center gap-2">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                              </svg>
+                              <span>{interview.interviewType === 'online' ? 'Online' : 'Walk-in'}</span>
+                            </p>
+                          </div>
+
+                          <div className="mt-4">
+                            <span
+                              className={`inline-block px-3 py-1.5 rounded-full text-sm font-medium ${getInterviewStatusColor(
+                                interview.status
+                              )}`}
+                            >
+                              {interview.status}
+                            </span>
+                          </div>
+                          <div className="mt-5 grid grid-cols-2 gap-3">
+                            {interview.interviewType === 'online' ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (interview.joinUrl) {
+                                    window.open(interview.joinUrl, '_blank', 'noopener,noreferrer');
+                                  }
+                                }}
+                                className="w-full py-3 rounded-xl text-white font-semibold hover:opacity-90 transition duration-200 active:scale-95"
+                                style={{ backgroundColor: '#28A8E1' }}
+                              >
+                                Join
+                              </button>
+                            ) : (
+                              <div className="w-full" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/interviews/${interview.id}`)}
+                              className="w-full py-3 rounded-xl text-gray-900 font-semibold bg-white border border-gray-200 hover:bg-gray-50 transition duration-200 active:scale-95"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-20 text-center">
+                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <svg
+                        width="32"
+                        height="32"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-gray-400"
+                      >
+                        <path d="M8 2v4" />
+                        <path d="M16 2v4" />
+                        <rect width="18" height="18" x="3" y="4" rx="2" />
+                        <path d="M3 10h18" />
+                      </svg>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">No interviews scheduled</h2>
+                    <p className="text-gray-500 max-w-sm mx-auto">
+                      You do not have any upcoming interviews yet. Keep applying to increase your chances.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/explore-jobs')}
+                      className="mt-6 rounded-xl bg-[#28A8E1] px-6 py-3 text-sm font-semibold text-white hover:opacity-95 transition"
+                    >
+                      Explore jobs
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

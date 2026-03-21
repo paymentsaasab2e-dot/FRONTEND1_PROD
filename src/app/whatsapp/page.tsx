@@ -123,8 +123,17 @@ export default function WhatsAppLogin() {
 
       // Navigate to verify page
       router.push("/whatsapp/verify");
-    } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      const isNetworkFail =
+        err instanceof TypeError &&
+        (err.message === "Failed to fetch" || err.message.includes("fetch"));
+      setError(
+        isNetworkFail
+          ? `Cannot reach the API (${API_BASE_URL}). Start the backend on port 5000 (cd backedn1 → npm run dev), or from the Phase 1 folder run npm install once, then npm run dev to start both apps.`
+          : err instanceof Error
+            ? err.message
+            : "Something went wrong. Please try again.",
+      );
       console.error("Error sending OTP:", err);
     } finally {
       setIsLoading(false);

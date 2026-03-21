@@ -124,11 +124,14 @@ export default function AICVEditorPage() {
       
       // Hide header and footer for PDF export
       const header = document.querySelector('header');
+      const headerSpacer = document.querySelector('[data-app-header-spacer]');
       const footer = document.querySelector('footer');
       const originalHeaderDisplay = header?.style.display || '';
+      const originalSpacerDisplay = (headerSpacer as HTMLElement | null)?.style.display || '';
       const originalFooterDisplay = footer?.style.display || '';
       
       if (header) header.style.display = 'none';
+      if (headerSpacer) (headerSpacer as HTMLElement).style.display = 'none';
       if (footer) footer.style.display = 'none';
 
       // Capture the resume preview as canvas
@@ -141,6 +144,7 @@ export default function AICVEditorPage() {
 
       // Restore header and footer
       if (header) header.style.display = originalHeaderDisplay;
+      if (headerSpacer) (headerSpacer as HTMLElement).style.display = originalSpacerDisplay;
       if (footer) footer.style.display = originalFooterDisplay;
 
       // Calculate PDF dimensions

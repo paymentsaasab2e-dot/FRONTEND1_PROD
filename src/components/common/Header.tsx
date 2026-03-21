@@ -47,6 +47,10 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     const [showJobSearch, setShowJobSearch] = useState(false);
     const [jobSearchValue, setJobSearchValue] = useState('');
 
+    const headerShellRef = useRef<HTMLElement | null>(null);
+    /** Reserves document flow space equal to the fixed header so page content is not hidden underneath. */
+    const [headerSpacerPx, setHeaderSpacerPx] = useState(96);
+
     // Fetch profile data (photo, name, email)
     useEffect(() => {
         const fetchProfileData = async () => {
@@ -116,6 +120,28 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
 
         fetchProfileData();
     }, []);
+
+    useEffect(() => {
+        const el = headerShellRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return;
+
+        const sync = () => {
+            const h = Math.ceil(el.getBoundingClientRect().height);
+            setHeaderSpacerPx(h);
+            document.documentElement.style.setProperty('--app-header-height', `${h}px`);
+        };
+
+        sync();
+        const ro = new ResizeObserver(sync);
+        ro.observe(el);
+        window.addEventListener('orientationchange', sync);
+
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('orientationchange', sync);
+            document.documentElement.style.removeProperty('--app-header-height');
+        };
+    }, [showNav]);
 
     // Close modals when clicking outside
     useEffect(() => {
@@ -225,7 +251,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
         { label: 'Dashboard', path: '/candidate-dashboard' },
         { label: 'Jobs', path: '/explore-jobs' },
         { label: 'Applications', path: '/applications' },
-        { label: 'Courses', path: '/courses' },
+        { label: 'LMS', path: '/lms' },
         { label: 'Profile', path: '/profile' },
     ];
 
@@ -260,7 +286,11 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     const isJobsPage = pathname?.startsWith(JOBS_PATH) ?? false;
 
     return (
-        <header className="bg-transparent px-4 sm:px-6 py-5">
+        <>
+        <header
+            ref={headerShellRef}
+            className="fixed top-0 left-0 right-0 z-[300] w-full bg-white/95 backdrop-blur-sm border-b border-gray-200/70 px-4 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-5 shadow-[0_1px_0_rgba(15,23,42,0.06)]"
+        >
             <div className="mx-auto flex max-w-7xl items-center justify-between">
                 {/* Left: Logo and Hamburger */}
                 <div className="flex items-center gap-4">
@@ -1143,7 +1173,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                                     <div
                                         className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
                                         onClick={() => {
-                                            router.push("/courses");
+                                            router.push("/lms");
                                             setIsProfileModalOpen(false);
                                         }}
                                     >
@@ -1168,7 +1198,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                                                 color: "#111827",
                                             }}
                                         >
-                                            Courses & Learning
+                                            LMS
                                         </span>
                                     </div>
                                 </div>
@@ -1294,5 +1324,12 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                 </div>
             </div>
         </header>
+        <div
+            aria-hidden
+            data-app-header-spacer
+            className="w-full shrink-0"
+            style={{ height: headerSpacerPx }}
+        />
+        </>
     );
 }
