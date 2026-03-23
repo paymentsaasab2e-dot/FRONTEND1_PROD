@@ -628,8 +628,8 @@ const DashboardPage = () => {
               if (!isCompact) setViewMode('detail');
             }}
             className={`rounded-full font-bold transition-all duration-500 active:scale-95 whitespace-nowrap shrink-0 ${isCompact
-              ? (isSelected ? 'bg-white text-[#111827]' : 'bg-gray-900 text-white hover:bg-black')
-              : 'bg-[#111827] text-white hover:bg-black group-hover:bg-white group-hover:text-[#111827] group-hover:px-8'
+              ? (isSelected ? 'bg-[#28A8DF] text-white' : 'bg-[#28A8DF] text-white hover:bg-[#1f97cb]')
+              : 'bg-[#28A8DF] text-white hover:bg-[#1f97cb] group-hover:bg-[#28A8DF] group-hover:text-white group-hover:px-8'
               }`} style={{
                 fontSize: isCompact ? "12px" : "12px",
                 padding: isCompact ? "8px 18px" : "8px 20px"
@@ -1151,7 +1151,7 @@ const DashboardPage = () => {
                         {/* Header Section */}
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-3 sm:mb-4 md:mb-5 lg:mb-6 xl:mb-7 gap-3 sm:gap-4 min-w-0">
                           <div className="mb-4 lg:mb-0 flex-1 min-w-0">
-                            <h1 className="font-bold text-gray-900 mb-1.5 sm:mb-2 wrap-break-word" style={{ fontSize: "clamp(18px, 2.5vw, 32px)" }}>{selectedJob.title}</h1>
+                            <h1 className="font-bold text-gray-900 mb-1.5 sm:mb-2 wrap-break-word" style={{ fontSize: "clamp(16px, 2.1vw, 28px)" }}>{selectedJob.title}</h1>
                             <p className="text-gray-500 mb-1 wrap-break-word" style={{ fontSize: "clamp(12px, 1.5vw, 16px)" }}>{selectedJob.company} - {selectedJob.location}</p>
                             <p className="text-gray-500 wrap-break-word" style={{ fontSize: "clamp(12px, 1.5vw, 16px)" }}>{selectedJob.salary} | {selectedJob.experienceLevel} Experience</p>
                           </div>
@@ -1171,7 +1171,7 @@ const DashboardPage = () => {
                           <div className="flex-1 min-w-0">
                             {/* About the Role */}
                             <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(15px, 1.8vw, 20px)" }}>About the Role</h3>
+                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>About the Role</h3>
                               <p className="text-gray-600 leading-relaxed wrap-break-word" style={{ fontSize: "clamp(12px, 1.4vw, 15px)", lineHeight: "1.6" }}>
                                 {selectedJob.description}
                               </p>
@@ -1179,7 +1179,7 @@ const DashboardPage = () => {
 
                             {/* Responsibilities */}
                             <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(15px, 1.8vw, 20px)" }}>Responsibilities</h3>
+                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Responsibilities</h3>
                               <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
                                 {selectedJob.responsibilities?.map((item, idx) => (
                                   <div key={idx} className="flex items-start gap-2 sm:gap-3 md:gap-4 min-w-0">
@@ -1196,7 +1196,7 @@ const DashboardPage = () => {
 
                             {/* Required Skills */}
                             <section className="mb-3 sm:mb-4 md:mb-5 lg:mb-6">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(15px, 1.8vw, 20px)" }}>Required Skills</h3>
+                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Required Skills</h3>
                               <div className="flex flex-wrap gap-1.5 sm:gap-2 md:gap-2.5">
                                 {selectedJob.requiredSkills?.map((skill, idx) => (
                                   <span key={idx} className="px-2.5 sm:px-3 md:px-4 py-1 sm:py-1.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-full shadow-sm wrap-break-word" style={{ fontSize: "clamp(10px, 1.1vw, 13px)" }}>
@@ -1209,7 +1209,7 @@ const DashboardPage = () => {
                             {/* Nice-to-have Skills */}
                             {selectedJob.niceToHaveSkills && (
                               <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                                <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(16px, 2vw, 22px)" }}>Nice-to-have Skills</h3>
+                                <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Nice-to-have Skills</h3>
                                 <div className="flex flex-wrap gap-1.5 sm:gap-2 md:gap-2.5">
                                   {selectedJob.niceToHaveSkills.map((skill, idx) => (
                                     <span key={idx} className="px-2.5 sm:px-3 md:px-4 py-1 sm:py-1.5 bg-gray-100 text-gray-700 font-medium rounded-full wrap-break-word" style={{ fontSize: "clamp(11px, 1.2vw, 14px)" }}>
@@ -1222,7 +1222,7 @@ const DashboardPage = () => {
 
                             {/* Job Information Grid */}
                             <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 md:mb-4 wrap-break-word" style={{ fontSize: "clamp(15px, 1.8vw, 20px)" }}>Job Information</h3>
+                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 md:mb-4 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Job Information</h3>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-3 sm:gap-y-4 md:gap-y-5 lg:gap-y-6 gap-x-3 sm:gap-x-4">
                                 <div className="min-w-0">
                                   <p className="text-gray-500 mb-1 wrap-break-word" style={{ fontSize: "clamp(11px, 1.2vw, 14px)" }}>Employment Type</p>
@@ -1240,116 +1240,76 @@ const DashboardPage = () => {
                             </section>
 
                             {/* AI Job Fit Score Card */}
-                            <div className="flex flex-row justify-center items-center p-[48px] gap-[91px] w-full max-w-[632px] h-[353px] bg-[#F1F5F966] rounded-[10px] box-border font-sans mb-6 border border-gray-200 shadow-lg">
-                              
-                              {/* --- LEFT COLUMN --- */}
-                              <div className="flex flex-col items-center gap-[37px] w-[187px] h-[252px]">
-                                
-                                {/* Header (Title & Badge) */}
-                                <div className="flex flex-col items-center gap-[10px] w-full">
-                                  <span className="text-[12px] leading-[16px] text-[#1D293D] font-normal text-center">
-                                    AI Job Fit Score
-                                  </span>
-                                  <div className="flex flex-row justify-center items-center px-[10px] py-[2px] w-[145px] h-[20px] bg-[#3B82F6] rounded-full">
-                                    <span className="text-[12px] leading-[16px] font-semibold text-[#F8FAFC]">
-                                      Powered by SAASA AI
+                            <div className="mb-6 mt-6 w-full">
+                              <div className="inline-block w-full rounded-[12px] bg-gradient-to-r from-[#EFDCC8] to-[#C8E6FB] p-[2px] md:ml-0 md:w-[632px] md:min-w-[632px] lg:ml-0">
+                                <div className="box-border flex w-full flex-col items-center justify-center gap-10 rounded-[10px] bg-[rgba(241,245,249,0.92)] p-6 sm:p-8 md:h-[353px] md:flex-row md:justify-between md:gap-0 md:p-12">
+                                {/* Left Column */}
+                                <div className="flex w-full max-w-[187px] flex-col items-center gap-[37px]">
+                                  <div className="flex h-[46px] w-[187px] flex-col items-center gap-[10px]">
+                                    <span className="h-4 w-[187px] text-center text-xs font-normal leading-4 text-[#1D293D]">
+                                      AI Job Fit Score
                                     </span>
+                                    <div className="flex min-h-5 w-[145px] items-center justify-center rounded-full bg-[#3B82F6] px-[10px] py-[2px]">
+                                      <span className="whitespace-nowrap text-[11px] font-semibold leading-4 text-[#F8FAFC] sm:text-xs">
+                                        Powered by SAASA AI
+                                      </span>
                                     </div>
                                   </div>
 
-                                {/* Donut Chart (82%) */}
-                                <div className="relative flex justify-center items-center w-[92px] h-[92px]">
-                                  <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-                                    {/* Background Ring */}
-                                      <circle
-                                      cx="50"
-                                      cy="50"
-                                      r="42"
-                                        fill="transparent"
-                                      stroke="#E2E8F0"
-                                      strokeWidth="8"
-                                    />
-                                    {/* Active Progress Ring */}
-                                    <circle
-                                      cx="50"
-                                      cy="50"
-                                      r="42"
-                                      fill="transparent"
-                                      stroke="#475569"
-                                      strokeWidth="8"
-                                        strokeLinecap="round"
-                                      strokeDasharray={`${2 * Math.PI * 42}`}
-                                      strokeDashoffset={`${2 * Math.PI * 42 - (82 / 100) * (2 * Math.PI * 42)}`}
-                                      />
-                                    </svg>
-                                  <span className="absolute text-[24px] leading-[32px] font-normal tracking-[-0.6px] text-[#0F172B]">
-                                    82%
-                                  </span>
+                                  <div className="flex h-[92px] w-[92px] items-center justify-center rounded-[46px] border-8 border-[#E2E8F0]">
+                                    <span className="text-2xl font-normal leading-8 tracking-[-0.6px] text-[#0F172B]">82%</span>
                                   </div>
 
-                                {/* Button */}
                                   <button
-                                  onClick={() => router.push('/cveditor')}
-                                  className="flex flex-row justify-center items-center px-[12px] py-[8px] w-[187px] h-[40px] bg-[#0F172A] rounded-[6px] hover:bg-[#1E293B] transition-colors"
+                                    onClick={() => router.push('/cveditor')}
+                                    className="flex h-10 w-[187px] min-w-[80px] items-center justify-center gap-1 rounded-[6px] bg-gradient-to-r from-[#1D4ED8] to-[#28A8DF] px-3 py-2 transition-opacity hover:opacity-95"
                                   >
-                                  <span className="text-[14px] leading-[24px] font-medium text-[#F8FAFC]">
-                                    Improve CV for this Job
-                                  </span>
+                                    <span className="h-6 text-sm font-medium leading-6 text-[#F8FAFC]">Improve CV for this Job</span>
                                   </button>
                                 </div>
 
-                              {/* --- RIGHT COLUMN --- */}
-                              <div className="flex flex-col items-start gap-[33px] w-[258px]">
-                                
-                                {/* Strengths Section */}
-                                <div className="flex flex-col items-start gap-[16px] w-full">
-                                  <h3 className="text-[12px] leading-[16px] uppercase font-normal text-[#62748E] m-0">
-                                    Strengths
-                                  </h3>
-                                  <ul className="flex flex-col items-start gap-[8px] w-full p-0 m-0 list-none">
-                                    {[
-                                      'Strong experience with React and Node.js',
-                                      'Proficient in TypeScript development',
-                                      'Experience with cloud platforms like AWS',
-                                      'Solid understanding of SQL databases',
-                                    ].map((text, i) => (
-                                      <li key={i} className="flex flex-row items-center gap-[8px] w-full h-[20px]">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                                            </svg>
-                                        <span className="text-[12px] leading-[16px] font-normal text-[#314158] truncate">
-                                          {text}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
+                                {/* Right Column */}
+                                <div className="flex w-full max-w-[258px] flex-col items-start gap-[33px]">
+                                  <div className="flex w-full max-w-[258px] flex-col items-start gap-4">
+                                    <h3 className="h-4 w-[258px] text-xs font-normal uppercase leading-4 text-[#62748E]">STRENGTHS</h3>
+                                    <ul className="flex w-full max-w-[258px] flex-col gap-2 p-0">
+                                      {[
+                                        'Strong experience with React and Node.js',
+                                        'Proficient in TypeScript development',
+                                        'Experience with cloud platforms like AWS',
+                                        'Solid understanding of SQL databases',
+                                      ].map((text, i) => (
+                                        <li key={i} className="flex h-5 w-full items-center gap-2">
+                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                            <polyline points="22 4 12 14.01 9 11.01" />
+                                          </svg>
+                                          <span className="h-4 w-[230px] text-xs font-normal leading-4 text-[#314158]">{text}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
                                   </div>
 
-                                {/* Gaps Section */}
-                                <div className="flex flex-col items-start gap-[16px] w-full">
-                                  <h3 className="text-[12px] leading-[16px] uppercase font-normal text-[#62748E] m-0">
-                                    Gaps
-                                  </h3>
-                                  <ul className="flex flex-col items-start gap-[8px] w-full p-0 m-0 list-none">
-                                    {[
-                                      'Experience with cloud platforms like AWS',
-                                      'Solid understanding of SQL databases',
-                                    ].map((text, i) => (
-                                      <li key={i} className="flex flex-row items-center gap-[8px] w-full h-[24px]">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <circle cx="12" cy="12" r="10"></circle>
-                                          <line x1="15" y1="9" x2="9" y2="15"></line>
-                                          <line x1="9" y1="9" x2="15" y2="15"></line>
-                                            </svg>
-                                        <span className="text-[12px] leading-[16px] font-normal text-[#314158] truncate">
-                                          {text}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                    </div>
-                                
+                                  <div className="flex w-full max-w-[258px] flex-col items-start gap-4">
+                                    <h3 className="h-4 w-[258px] text-xs font-normal uppercase leading-4 text-[#62748E]">GAPS</h3>
+                                    <ul className="flex w-full max-w-[258px] flex-col gap-2 p-0">
+                                      {[
+                                        'Experience with cloud platforms like AWS',
+                                        'Solid understanding of SQL databases',
+                                      ].map((text, i) => (
+                                        <li key={i} className="flex h-6 w-full items-center gap-2">
+                                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <line x1="15" y1="9" x2="9" y2="15" />
+                                            <line x1="9" y1="9" x2="15" y2="15" />
+                                          </svg>
+                                          <span className="h-4 w-[230px] text-xs font-normal leading-4 text-[#314158]">{text}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1358,7 +1318,7 @@ const DashboardPage = () => {
                           <div className="w-full xl:w-auto xl:max-w-[320px] xl:min-w-[260px] 2xl:max-w-[360px] 2xl:min-w-[280px] shrink-0 space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 xl:space-y-7 min-w-0">
                             {/* Company Overview Card */}
                             <div className="bg-white rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 xl:p-7 shadow-sm border border-gray-100 w-full max-w-full overflow-hidden">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 md:mb-4 wrap-break-word" style={{ fontSize: "clamp(16px, 2vw, 20px)" }}>Company Overview</h3>
+                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 md:mb-4 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Company Overview</h3>
                               <p className="text-gray-600 leading-relaxed mb-3 sm:mb-4 wrap-break-word" style={{ fontSize: "clamp(12px, 1.4vw, 14px)", lineHeight: "1.6" }}>
                                 {selectedJob.companyOverview}
                               </p>
@@ -1366,7 +1326,7 @@ const DashboardPage = () => {
 
                             {/* Quick Highlights Card */}
                             <div className="bg-white rounded-2xl p-3 sm:p-4 md:p-5 lg:p-6 xl:p-7 shadow-sm border border-gray-100 w-full max-w-full overflow-hidden">
-                              <h3 className="font-bold text-gray-900 mb-3 sm:mb-4 md:mb-5 lg:mb-6 wrap-break-word" style={{ fontSize: "clamp(16px, 2vw, 20px)" }}>Quick Highlights</h3>
+                              <h3 className="font-bold text-gray-900 mb-3 sm:mb-4 md:mb-5 lg:mb-6 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Quick Highlights</h3>
                               <div className="grid grid-cols-2 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-3 sm:gap-y-4 md:gap-y-5 lg:gap-y-6">
                                 <div className="min-w-0">
                                   <p className="text-gray-500 mb-1 uppercase tracking-wide wrap-break-word" style={{ fontSize: "clamp(9px, 1vw, 12px)" }}>Experience</p>

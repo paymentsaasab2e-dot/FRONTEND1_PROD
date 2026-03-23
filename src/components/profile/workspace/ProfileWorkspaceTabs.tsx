@@ -19,7 +19,7 @@ export const ProfileWorkspaceTabs = forwardRef<HTMLDivElement, ProfileWorkspaceT
   return (
     <div
       ref={ref}
-      className="sticky top-0 z-20 -mx-1 mb-5 border-b border-gray-200/90 bg-[#f4f6f9]/95 pb-0 backdrop-blur-sm lg:top-2"
+      className="sticky top-[calc(var(--app-header-height,92px)+10px)] z-40 -mx-1 mb-5 pb-0"
     >
       <div className="flex gap-1.5 overflow-x-auto pb-3 pt-0.5 scrollbar-thin">
         {tabs.map((t) => {

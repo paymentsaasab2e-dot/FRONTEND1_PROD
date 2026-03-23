@@ -40,7 +40,7 @@ export function ProfileWorkspaceRail({
   const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+    <aside className="space-y-4 lg:sticky lg:top-[calc(var(--app-header-height,92px)+10px)] lg:self-start">
       {/* Identity */}
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex gap-3">

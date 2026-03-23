@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import ProfileDrawer from '../ui/ProfileDrawer';
 
 interface AcademicAchievementModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export default function AcademicAchievementModal({
       setDescription(initialData.description || '');
       
       // Normalize documents to ensure they all have unique IDs
-      const normalizedDocuments: AcademicAchievementDocument[] = (initialData.documents || []).map((doc, index) => {
+      const normalizedDocuments: AcademicAchievementDocument[] = (initialData.documents || []).map((doc: any, index) => {
         if (typeof doc === 'string') {
           // If it's a string (URL from database), convert to object
           return {
@@ -165,43 +166,28 @@ export default function AcademicAchievementModal({
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="modal-placeholder-black bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">Add Academic Achievement</h2>
-            <button
-              onClick={onClose}
-              className="text-[#9095A1] hover:text-gray-600"
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Modal Content */}
-          <div className="p-6">
+    <ProfileDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Academic Achievement"
+      widthClassName="w-full md:w-[520px]"
+      footer={(
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="h-10 rounded-lg bg-orange-500 px-5 text-sm font-medium text-white hover:bg-orange-600"
+          >
+            Save Achievement
+          </button>
+        </div>
+      )}
+    >
             <div className="space-y-6">
               {/* Achievement Title */}
               <div>
@@ -408,24 +394,6 @@ export default function AcademicAchievementModal({
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
-              >
-                Save Achievement
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </ProfileDrawer>
   );
 }

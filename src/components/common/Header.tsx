@@ -3,9 +3,11 @@
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 
 import { API_BASE_URL } from '@/lib/api-base';
+import NotificationPanel from '@/components/common/NotificationPanel';
+import ProfilePanel from '@/components/common/ProfilePanel';
 const PRIMARY = '#28A8DF';
 const JOBS_PATH = '/explore-jobs';
 
@@ -40,6 +42,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
     const [userName, setUserName] = useState<string>('');
     const [userEmail, setUserEmail] = useState<string>('');
+    const [profileCompletion, setProfileCompletion] = useState<number | null>(null);
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const navRef = useRef<HTMLElement | null>(null);
@@ -78,6 +81,9 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                         }
                         if (profile.email) {
                             setUserEmail(profile.email);
+                        }
+                        if (typeof profile.profileCompleteness === 'number') {
+                            setProfileCompletion(profile.profileCompleteness);
                         }
                         
                         // Handle profile photo
@@ -147,12 +153,6 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
-            if (!target.closest('.notification-modal') && !target.closest('.notification-button')) {
-                setIsNotificationsModalOpen(false);
-            }
-            if (!target.closest('.profile-modal') && !target.closest('.profile-button')) {
-                setIsProfileModalOpen(false);
-            }
             if (!target.closest('.mobile-menu') && !target.closest('.hamburger-button')) {
                 setIsMobileMenuOpen(false);
             }
@@ -164,14 +164,14 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
             }
         };
 
-        if (isNotificationsModalOpen || isProfileModalOpen || isMobileMenuOpen || showJobSearch) {
+        if (isMobileMenuOpen || showJobSearch) {
             document.addEventListener('mousedown', handleClickOutside);
         }
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isNotificationsModalOpen, isProfileModalOpen, isMobileMenuOpen, showJobSearch]);
+    }, [isMobileMenuOpen, showJobSearch]);
 
     // Determine active page
     const isActive = useCallback(
@@ -187,58 +187,30 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
         [pathname]
     );
 
-    const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number; height: number; top: number } | null>(null);
-    const [isInitial, setIsInitial] = useState(true);
-    const itemsRef = useRef<(HTMLButtonElement | null)[]>([]);
-
-    // Load last position from sessionStorage on mount
-    useEffect(() => {
-        const saved = sessionStorage.getItem('navIndicatorStyle');
-        if (saved) {
-            setIndicatorStyle(JSON.parse(saved));
-            setIsInitial(false); // Allow immediate transition from saved position
-        }
-    }, []);
-
-    useEffect(() => {
-        const updateIndicator = () => {
-            const activeIndex = navItems.findIndex(item => isActive(item.path));
-            if (activeIndex !== -1 && itemsRef.current[activeIndex]) {
-                const activeElement = itemsRef.current[activeIndex];
-                if (activeElement) {
-                    const newStyle = {
-                        left: activeElement.offsetLeft,
-                        width: activeElement.offsetWidth,
-                        height: activeElement.offsetHeight,
-                        top: activeElement.offsetTop,
-                    };
-                    setIndicatorStyle(newStyle);
-                    sessionStorage.setItem('navIndicatorStyle', JSON.stringify(newStyle));
-
-                    if (isInitial) {
-                        // If we didn't have a saved position, snap first then enable transitions
-                        setTimeout(() => setIsInitial(false), 50);
-                    }
-                }
-            }
-        };
-
-        updateIndicator();
-        const timer = setTimeout(updateIndicator, 100);
-
-        window.addEventListener('resize', updateIndicator);
-        return () => {
-            window.removeEventListener('resize', updateIndicator);
-            clearTimeout(timer);
-        };
-    }, [pathname, isActive, isInitial]);
-
     // Close the expanded Jobs search if we leave the Jobs page
     useEffect(() => {
         if (!pathname?.startsWith(JOBS_PATH)) {
             setShowJobSearch(false);
         }
     }, [pathname]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+
+        const shouldLockScroll = isNotificationsModalOpen || isProfileModalOpen;
+        if (!shouldLockScroll) return;
+
+        const { body } = document;
+        const previousOverflow = body.style.overflow;
+        const previousTouchAction = body.style.touchAction;
+        body.style.overflow = 'hidden';
+        body.style.touchAction = 'none';
+
+        return () => {
+            body.style.overflow = previousOverflow;
+            body.style.touchAction = previousTouchAction;
+        };
+    }, [isNotificationsModalOpen, isProfileModalOpen]);
 
     // Autofocus after the Jobs search animates in
     useEffect(() => {
@@ -289,7 +261,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
         <>
         <header
             ref={headerShellRef}
-            className="fixed top-0 left-0 right-0 z-[300] w-full bg-white/95 backdrop-blur-sm border-b border-gray-200/70 px-4 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-5 shadow-[0_1px_0_rgba(15,23,42,0.06)]"
+            className="fixed top-0 left-0 right-0 z-[300] w-full border-b border-slate-200/50 bg-white/45 px-4 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-5 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/35"
         >
             <div className="mx-auto flex max-w-7xl items-center justify-between">
                 {/* Left: Logo and Hamburger */}
@@ -333,57 +305,45 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                 {showNav ? (
                     <nav
                         ref={navRef}
-                        className="relative hidden lg:flex items-center justify-center gap-1 px-4 py-2.5 rounded-full min-w-0 max-w-[900px] overflow-visible"
-                        style={{
-                            background: '#FFFFFF',
-                            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
-                        }}
+                        className="relative hidden lg:flex min-w-0 max-w-[900px] items-center justify-center gap-1 overflow-visible rounded-full border border-white/50 bg-white/50 px-3 py-2 shadow-[0_2px_16px_rgba(15,23,42,0.08)] backdrop-blur-xl backdrop-saturate-150"
                     >
                         {/* ── Tabs row + Search trigger pill ──────────────────────────────── */}
-                        <div className="flex items-center w-full">
-                            <div className="relative flex-1 flex items-center justify-center gap-1">
-                                {/* Sliding Indicator */}
-                                {indicatorStyle && navItems.some(item => isActive(item.path)) && (
-                                    <div
-                                        className={`absolute rounded-full ${isInitial ? '' : 'transition-all duration-500 ease-in-out'}`}
-                                        style={{
-                                            left: `${indicatorStyle.left}px`,
-                                            width: `${indicatorStyle.width}px`,
-                                            height: `${indicatorStyle.height}px`,
-                                            top: `${indicatorStyle.top}px`,
-                                            backgroundColor: PRIMARY,
-                                        }}
-                                    />
-                                )}
-
-                                {navItems.map((item, index) => {
-                                    const active = isActive(item.path);
-                                    return (
-                                        <button
-                                            key={item.path}
-                                            ref={(el) => { itemsRef.current[index] = el; }}
-                                            type="button"
-                                            onClick={() => {
-                                                if (item.path === JOBS_PATH && active) {
-                                                    handleJobsToggleSearch();
-                                                } else {
-                                                    handleTabClick(item.path);
-                                                }
-                                            }}
-                                            className={`relative z-10 min-w-[80px] flex items-center justify-center gap-1 rounded-full text-sm font-medium transition-colors duration-300 ${active
-                                                ? 'text-white'
-                                                : 'text-slate-600 hover:text-slate-800 bg-transparent'
-                                                }`}
-                                            style={{
-                                                fontFamily: 'Inter, sans-serif',
-                                                padding: '10px 16px',
-                                            }}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                        <div className="flex w-full items-center">
+                            <LayoutGroup id="header-main-nav">
+                                <div className="relative flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full">
+                                    {navItems.map((item) => {
+                                        const active = isActive(item.path);
+                                        return (
+                                            <button
+                                                key={item.path}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (item.path === JOBS_PATH && active) {
+                                                        handleJobsToggleSearch();
+                                                    } else {
+                                                        handleTabClick(item.path);
+                                                    }
+                                                }}
+                                                className={`relative z-10 flex min-w-[72px] flex-1 items-center justify-center gap-1 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ease-in-out sm:min-w-[80px] sm:flex-none ${active
+                                                    ? 'text-white'
+                                                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                                                    }`}
+                                                style={{ fontFamily: 'Inter, sans-serif' }}
+                                            >
+                                                {active && (
+                                                    <motion.div
+                                                        layoutId="nav-pill"
+                                                        className="pointer-events-none absolute inset-0 z-0 rounded-full"
+                                                        style={{ backgroundColor: PRIMARY }}
+                                                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                                    />
+                                                )}
+                                                <span className="relative z-10">{item.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </LayoutGroup>
 
                             {/* Search Jobs trigger — Framer Motion width + fade */}
                             <AnimatePresence>
@@ -563,8 +523,8 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                 {/* Right side icons - Settings, Notifications, Profile */}
                 <div className="flex items-center gap-3">
 
-                    {/* Notifications Icon with Modal */}
-                    <div className="relative notification-button">
+                    {/* Notifications trigger */}
+                    <div className="relative">
                         <button
                             type="button"
                             onClick={() => {
@@ -588,739 +548,30 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                             </svg>
                         </button>
-
-                        {/* Notifications Dropdown */}
-                        {isNotificationsModalOpen && (
-                            <div
-                                className="notification-modal absolute right-0 top-full mt-2 bg-white rounded-lg shadow-2xl overflow-hidden z-10001 transition-all duration-300 ease-out"
-                                style={{
-                                    width: "270px",
-                                    fontFamily: "Inter, sans-serif",
-                                    animation: "slideDown 0.3s ease-out",
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {/* Header */}
-                                <div className="px-3.5 pt-3 pb-2 border-b border-gray-200">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <h3
-                                            style={{
-                                                fontSize: "14px",
-                                                fontWeight: 700,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Notifications
-                                        </h3>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                className="text-gray-700 hover:text-gray-900"
-                                                style={{
-                                                    fontSize: "11px",
-                                                    fontWeight: 500,
-                                                }}
-                                            >
-                                                Mark all as read
-                                            </button>
-                                            <button
-                                                onClick={() => setIsNotificationsModalOpen(false)}
-                                                className="text-gray-700 hover:text-gray-900"
-                                            >
-                                                <svg
-                                                    width="14"
-                                                    height="14"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                >
-                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <p
-                                        style={{
-                                            fontSize: "10px",
-                                            fontWeight: 400,
-                                            color: "#6B7280",
-                                        }}
-                                    >
-                                        Recent updates related to your jobs and profile
-                                    </p>
-                                </div>
-
-                                {/* Notifications Content */}
-                                <div>
-                                    <div className="px-3.5 pt-3 pb-2.5">
-                                        <h4
-                                            style={{
-                                                fontSize: "11px",
-                                                fontWeight: 600,
-                                                color: "#6B7280",
-                                                marginBottom: "7px",
-                                            }}
-                                        >
-                                            Today
-                                        </h4>
-                                        <div className="space-y-3">
-                                            {/* Notification 1 - Blue */}
-                                            <div className="flex items-start gap-2.5">
-                                                <div className="mt-0.5 shrink-0">
-                                                    <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center">
-                                                        <svg
-                                                            width="14"
-                                                            height="14"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            className="text-sky-500"
-                                                        >
-                                                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                                                        </svg>
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p
-                                                        style={{
-                                                            fontSize: "12px",
-                                                            fontWeight: 500,
-                                                            color: "#111827",
-                                                            marginBottom: "2px",
-                                                        }}
-                                                    >
-                                                        3 new jobs match your profile
-                                                    </p>
-                                                    <p
-                                                        style={{
-                                                            fontSize: "10px",
-                                                            fontWeight: 400,
-                                                            color: "#6B7280",
-                                                        }}
-                                                    >
-                                                        Jobs based on your profile
-                                                    </p>
-                                                </div>
-                                                <div className="flex flex-col items-end gap-1 shrink-0">
-                                                    <span
-                                                        style={{
-                                                            fontSize: "9px",
-                                                            fontWeight: 400,
-                                                            color: "#6B7280",
-                                                        }}
-                                                    >
-                                                        2h ago
-                                                    </span>
-                                                    <div
-                                                        className="h-1.5 w-1.5 rounded-full bg-sky-500"
-                                                    ></div>
-                                                </div>
-                                            </div>
-
-                                            {/* Notification 2 - Green */}
-                                            <div className="flex items-start gap-2.5">
-                                                <div className="mt-0.5 shrink-0">
-                                                    <div className="h-7 w-7 rounded-full bg-green-100 flex items-center justify-center">
-                                                        <svg
-                                                            width="14"
-                                                            height="14"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            style={{ color: "#22C55E" }}
-                                                        >
-                                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                            <polyline points="14 2 14 8 20 8"></polyline>
-                                                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                                                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                                                        </svg>
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p
-                                                        style={{
-                                                            fontSize: "12px",
-                                                            fontWeight: 500,
-                                                            color: "#111827",
-                                                            marginBottom: "2px",
-                                                        }}
-                                                    >
-                                                        Your application for Data Analyst is under
-                                                    </p>
-                                                    <p
-                                                        style={{
-                                                            fontSize: "10px",
-                                                            fontWeight: 400,
-                                                            color: "#6B7280",
-                                                        }}
-                                                    >
-                                                        Application updated
-                                                    </p>
-                                                </div>
-                                                <div className="flex flex-col items-end gap-1 shrink-0">
-                                                    <span
-                                                        style={{
-                                                            fontSize: "9px",
-                                                            fontWeight: 400,
-                                                            color: "#6B7280",
-                                                        }}
-                                                    >
-                                                        8h ago
-                                                    </span>
-                                                    <div
-                                                        className="h-1.5 w-1.5 rounded-full"
-                                                        style={{ backgroundColor: "#22C55E" }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-
-                                            {/* Notification 3 - Red */}
-                                            <div className="flex items-start gap-2.5">
-                                                <div className="mt-0.5 shrink-0">
-                                                    <div className="h-7 w-7 rounded-full bg-red-100 flex items-center justify-center">
-                                                        <svg
-                                                            width="14"
-                                                            height="14"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            style={{ color: "#EF4444" }}
-                                                        >
-                                                            <path d="M9 11l3 3L22 4"></path>
-                                                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                                                        </svg>
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p
-                                                        style={{
-                                                            fontSize: "12px",
-                                                            fontWeight: 500,
-                                                            color: "#111827",
-                                                            marginBottom: "2px",
-                                                        }}
-                                                    >
-                                                        You've been shortlisted for Frontend Deve
-                                                    </p>
-                                                    <p
-                                                        style={{
-                                                            fontSize: "10px",
-                                                            fontWeight: 400,
-                                                            color: "#6B7280",
-                                                        }}
-                                                    >
-                                                        Interview invitation
-                                                    </p>
-                                                </div>
-                                                <div className="flex flex-col items-end gap-1 shrink-0">
-                                                    <span
-                                                        style={{
-                                                            fontSize: "9px",
-                                                            fontWeight: 400,
-                                                            color: "#6B7280",
-                                                        }}
-                                                    >
-                                                        1d ago
-                                                    </span>
-                                                    <div
-                                                        className="h-1.5 w-1.5 rounded-full"
-                                                        style={{ backgroundColor: "#EF4444" }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Footer */}
-                                <div className="px-3.5 py-2.5 border-t border-gray-200">
-                                    <button
-                                        onClick={() => {
-                                            router.push('/notification');
-                                            setIsNotificationsModalOpen(false);
-                                        }}
-                                        className="w-full text-center text-blue-600 hover:text-blue-700 font-medium"
-                                        style={{
-                                            fontSize: "11px",
-                                            fontWeight: 500,
-                                        }}
-                                    >
-                                        View all notifications
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
-                    {/* Profile Icon with Modal */}
-                    <div className="relative profile-button">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsProfileModalOpen(!isProfileModalOpen);
-                                setIsNotificationsModalOpen(false);
-                            }}
-                            className="profile-button h-8 w-8 overflow-hidden rounded-full bg-slate-300 cursor-pointer"
-                        >
-                            {(() => {
-                                if (!profilePhotoUrl) {
-                                    return (
-                                        <Image
-                                            src="/Gemini_Generated_Image_xxo7twxxo7twxxo7.png"
-                                            alt="User avatar"
-                                            width={32}
-                                            height={32}
-                                            className="h-8 w-8 object-cover"
-                                        />
-                                    );
-                                }
-                                
-                                // Data URLs don't need validation, use directly
-                                if (profilePhotoUrl.startsWith('data:')) {
-                                    return (
-                                        <Image
-                                            src={profilePhotoUrl}
-                                            alt="User avatar"
-                                            width={32}
-                                            height={32}
-                                            className="h-8 w-8 object-contain"
-                                            unoptimized
-                                        />
-                                    );
-                                }
-                                
-                                // Validate URL before using (only for http/https URLs)
-                                try {
-                                    new URL(profilePhotoUrl);
-                                    return (
-                                        <Image
-                                            src={profilePhotoUrl}
-                                            alt="User avatar"
-                                            width={32}
-                                            height={32}
-                                            className="h-8 w-8 object-contain"
-                                            unoptimized
-                                        />
-                                    );
-                                } catch (e) {
-                                    console.error('Invalid profile photo URL:', profilePhotoUrl, e);
-                                    return (
-                                        <Image
-                                            src="/Gemini_Generated_Image_xxo7twxxo7twxxo7.png"
-                                            alt="User avatar"
-                                            width={32}
-                                            height={32}
-                                            className="h-8 w-8 object-contain"
-                                        />
-                                    );
-                                }
-                            })()}
-                        </button>
-
-                        {/* Profile Dropdown */}
-                        {isProfileModalOpen && (
-                            <div
-                                className="profile-modal absolute right-0 top-full mt-2 bg-white rounded-lg shadow-2xl overflow-hidden z-10001 transition-all duration-300 ease-out"
-                                style={{
-                                    width: "280px",
-                                    fontFamily: "Inter, sans-serif",
-                                    animation: "slideDown 0.3s ease-out",
+                    {/* Profile trigger (visible only when candidate uploaded a profile photo) */}
+                    {profilePhotoUrl ? (
+                        <div className="relative profile-button">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsProfileModalOpen(!isProfileModalOpen);
+                                    setIsNotificationsModalOpen(false);
                                 }}
-                                onClick={(e) => e.stopPropagation()}
+                                className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300"
                             >
-                                {/* User Information Section */}
-                                <div className="px-3 pt-3 pb-2">
-                                    <div className="flex items-start gap-2.5">
-                                        <div className="h-10 w-10 rounded-full bg-gray-200 shrink-0 flex items-center justify-center overflow-hidden relative">
-                                            {profilePhotoUrl ? (
-                                                <Image
-                                                    src={profilePhotoUrl}
-                                                    alt="User avatar"
-                                                    fill
-                                                    className="object-contain"
-                                                    unoptimized
-                                                />
-                                            ) : (
-                                                <svg
-                                                    width="20"
-                                                    height="20"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    style={{ color: "#9CA3AF" }}
-                                                >
-                                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                                    <circle cx="12" cy="7" r="4"></circle>
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <div className="flex-1">
-                                            <h3
-                                                style={{
-                                                    fontSize: "15px",
-                                                    fontWeight: 700,
-                                                    color: "#111827",
-                                                    marginBottom: "2px",
-                                                }}
-                                            >
-                                                {userName || 'User'}
-                                            </h3>
-                                            <p
-                                                style={{
-                                                    fontSize: "11px",
-                                                    fontWeight: 400,
-                                                    color: "#6B7280",
-                                                    marginBottom: "4px",
-                                                }}
-                                            >
-                                                {userEmail || 'No email'}
-                                            </p>
-                                            <span
-                                                className="inline-block px-1.5 py-0.5 rounded-full"
-                                                style={{
-                                                    fontSize: "10px",
-                                                    fontWeight: 500,
-                                                    color: "#111827",
-                                                    backgroundColor: "#F3F4F6",
-                                                }}
-                                            >
-                                                Job Seeker
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Divider */}
-                                <div className="border-t border-gray-200 mx-3"></div>
-
-                                {/* Primary Navigation Options */}
-                                <div className="px-3 py-2">
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/personal-details");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="12" cy="7" r="4"></circle>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            View Profile
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/uploadcv");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Edit CV
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/applications");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            My Applications
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/assessments");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <path d="M9 11l3 3L22 4"></path>
-                                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Assessments
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/saved-jobs");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Saved Jobs
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/lms");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            LMS
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Divider */}
-                                <div className="border-t border-gray-200 mx-3"></div>
-
-                                {/* Preferences Section */}
-                                <div className="px-3 py-2">
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/notification-preferences");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Notification Preferences
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/settings");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            style={{ color: "#6B7280" }}
-                                        >
-                                            <circle cx="12" cy="12" r="3"></circle>
-                                            <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0l-4.243 4.243m8.485 0l-4.243-4.243m-4.242 0l-4.243 4.243"></path>
-                                        </svg>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Settings
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Divider */}
-                                <div className="border-t border-gray-200 mx-3"></div>
-
-                                {/* Support Section */}
-                                <div className="px-3 py-2 pb-3">
-                                    <div
-                                        className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-gray-50 rounded-md transition-colors"
-                                        onClick={() => {
-                                            router.push("/help");
-                                            setIsProfileModalOpen(false);
-                                        }}
-                                    >
-                                        <div
-                                            className="flex items-center justify-center rounded-full"
-                                            style={{
-                                                width: "16px",
-                                                height: "16px",
-                                                backgroundColor: "#6B7280",
-                                            }}
-                                        >
-                                            <svg
-                                                width="9"
-                                                height="9"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="white"
-                                                strokeWidth="3"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                            </svg>
-                                        </div>
-                                        <span
-                                            style={{
-                                                fontSize: "13px",
-                                                fontWeight: 400,
-                                                color: "#111827",
-                                            }}
-                                        >
-                                            Help & Support
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                                <Image
+                                    src={profilePhotoUrl}
+                                    alt="User avatar"
+                                    width={32}
+                                    height={32}
+                                    className="h-8 w-8 object-cover"
+                                    unoptimized
+                                />
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </header>
@@ -1329,6 +580,26 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
             data-app-header-spacer
             className="w-full shrink-0"
             style={{ height: headerSpacerPx }}
+        />
+        <NotificationPanel
+            isOpen={isNotificationsModalOpen}
+            onClose={() => setIsNotificationsModalOpen(false)}
+            onNavigate={(path) => {
+                router.push(path);
+                setIsNotificationsModalOpen(false);
+            }}
+        />
+        <ProfilePanel
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+            onNavigate={(path) => {
+                router.push(path);
+                setIsProfileModalOpen(false);
+            }}
+            profilePhotoUrl={profilePhotoUrl}
+            userName={userName}
+            userEmail={userEmail}
+            profileCompletion={profileCompletion}
         />
         </>
     );

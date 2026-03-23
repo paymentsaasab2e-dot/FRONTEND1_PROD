@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import ProfileDrawer from '../ui/ProfileDrawer';
 
 interface InternshipModalProps {
   isOpen: boolean;
@@ -179,33 +180,29 @@ export default function InternshipModal({
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="modal-placeholder-black bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">Edit Internship</h2>
-            <button
-              onClick={onClose}
-              className="text-[#9095A1] hover:text-gray-500"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Modal Body */}
-          <div className="px-6 py-6 space-y-6">
+    <ProfileDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Internship"
+      widthClassName="w-full max-w-[960px]"
+      footer={(
+        <div className="flex items-center justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="h-10 rounded-lg bg-orange-500 px-5 text-sm font-medium text-white hover:bg-orange-600"
+          >
+            Save Internship
+          </button>
+        </div>
+      )}
+    >
+          <div className="space-y-6">
             {/* Basic Information Section - Two Column Layout */}
             <div className="grid grid-cols-2 gap-4">
               {/* Left Column */}
@@ -622,23 +619,6 @@ export default function InternshipModal({
             </div>
           </div>
 
-          {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-            >
-              Save Internship
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+    </ProfileDrawer>
   );
 }

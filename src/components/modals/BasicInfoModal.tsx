@@ -6,7 +6,7 @@ import Image from 'next/image';
 interface BasicInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: BasicInfoData) => void;
+  onSave: (data: BasicInfoData) => void | Promise<void>;
   initialData?: BasicInfoData;
 }
 
@@ -77,8 +77,8 @@ export default function BasicInfoModal({
     }
   }, [initialData, isOpen]);
 
-  const handleSave = () => {
-    onSave({
+  const handleSave = async () => {
+    await onSave({
       firstName: firstNameValue,
       middleName: middleNameValue,
       lastName: lastNameValue,
@@ -92,27 +92,43 @@ export default function BasicInfoModal({
       employment: employmentValue,
       passportNumber: passportNumberValue,
     });
-    onClose();
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow || 'auto';
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999]">
+        {/* Backdrop */}
         <div
-          className="modal-placeholder-black bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-all duration-300"
+          onClick={onClose}
+        />
+
+        {/* Drawer */}
+        <div
+          className="fixed top-0 right-0 z-[10000] flex h-full w-full max-w-[520px] flex-col border-l border-gray-200 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)] transform transition-all duration-300 ease-out translate-x-0"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">Edit Basic Information</h2>
+          {/* Header */}
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-5">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {initialData ? 'Edit Basic Information' : 'Add Basic Information'}
+            </h2>
             <button
               onClick={onClose}
               className="text-[#9095A1] hover:text-gray-600"
@@ -133,216 +149,213 @@ export default function BasicInfoModal({
             </button>
           </div>
 
-          {/* Modal Content */}
-          <div className="p-6">
-            <div className="space-y-6">
-              {/* Name Fields Row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* First Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    value={firstNameValue}
-                    onChange={(e) => setFirstNameValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
-                  />
-                </div>
-
-                {/* Middle Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Middle Name
-                  </label>
-                  <input
-                    type="text"
-                    value={middleNameValue}
-                    onChange={(e) => setMiddleNameValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
-                  />
-                </div>
-
-                {/* Last Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    value={lastNameValue}
-                    onChange={(e) => setLastNameValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
-                  />
-                </div>
-              </div>
-
-              {/* Two Column Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column */}
-                <div className="space-y-4">
-                  {/* Email Address */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <div className="flex items-center gap-2">
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="space-y-8">
+              {/* Section 1 */}
+              <section className="space-y-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                  Personal Details
+                </h3>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">First Name</label>
                     <input
-                      type="email"
-                      value={emailValue}
-                      onChange={(e) => setEmailValue(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
+                      type="text"
+                      value={firstNameValue}
+                      onChange={(e) => setFirstNameValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Enter first name"
                     />
-                    <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
-                      Verified
-                    </button>
                   </div>
-                </div>
-
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={phoneCode}
-                      onChange={(e) => setPhoneCode(e.target.value)}
-                      className="w-36 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white text-gray-900"
-                    >
-                      <option>+1 (USA)</option>
-                      <option>+44 (UK)</option>
-                      <option>+91 (India)</option>
-                    </select>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Middle Name</label>
                     <input
-                      type="tel"
-                      value={phoneValue}
-                      onChange={(e) => setPhoneValue(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
+                      type="text"
+                      value={middleNameValue}
+                      onChange={(e) => setMiddleNameValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Enter middle name"
+                    />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-medium text-gray-500">Last Name</label>
+                    <input
+                      type="text"
+                      value={lastNameValue}
+                      onChange={(e) => setLastNameValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Enter last name"
                     />
                   </div>
                 </div>
+              </section>
 
-                {/* Current City */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current City
-                  </label>
-                  <input
-                    type="text"
-                    value={cityValue}
-                    onChange={(e) => setCityValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
-                  />
-                </div>
-
-                {/* Employment Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Employment Status
-                  </label>
-                  <select
-                    value={employmentValue}
-                    onChange={(e) => setEmploymentValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white text-gray-900"
-                  >
-                    <option value="">Select Status</option>
-                    <option>Employed</option>
-                    <option>Unemployed</option>
-                    <option>Self-Employed</option>
-                    <option>Student</option>
-                  </select>
-                </div>
-
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-4">
-                  {/* Gender */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Gender
-                  </label>
-                  <select
-                    value={genderValue}
-                    onChange={(e) => setGenderValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white text-gray-900"
-                  >
-                    <option value="">Select Gender</option>
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
-                    <option>Prefer not to say</option>
-                  </select>
-                </div>
-
-                {/* Date of Birth */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date of Birth
-                  </label>
-                  <div className="relative">
-                    <div
-                      className="absolute left-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer"
-                      onClick={() => dateInputRef.current?.showPicker()}
-                    >
-                      <Image
-                        src="/calendar_icon.png"
-                        alt="Calendar"
-                        width={16}
-                        height={16}
-                        className="h-4 w-4"
+              {/* Section 2 */}
+              <section className="space-y-4 border-t border-gray-200 pt-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                  Contact Information
+                </h3>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-medium text-gray-500">Email Address</label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={emailValue}
+                        onChange={(e) => setEmailValue(e.target.value)}
+                        className="h-11 w-full rounded-lg border border-gray-200 px-3 pr-24 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Enter email address"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md bg-blue-100 px-2 py-1 text-xs text-blue-600">
+                        Verified
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-medium text-gray-500">Phone Number</label>
+                    <div className="grid grid-cols-[140px_1fr] gap-2">
+                      <select
+                        value={phoneCode}
+                        onChange={(e) => setPhoneCode(e.target.value)}
+                        className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                      >
+                        <option>+1 (USA)</option>
+                        <option>+44 (UK)</option>
+                        <option>+91 (India)</option>
+                      </select>
+                      <input
+                        type="tel"
+                        value={phoneValue}
+                        onChange={(e) => setPhoneValue(e.target.value)}
+                        className="h-11 w-full rounded-lg border border-gray-200 px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Enter phone number"
                       />
                     </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Section 3 */}
+              <section className="space-y-4 border-t border-gray-200 pt-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                  Basic Details
+                </h3>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Gender</label>
+                    <select
+                      value={genderValue}
+                      onChange={(e) => setGenderValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                    >
+                      <option value="">Select Gender</option>
+                      <option>Male</option>
+                      <option>Female</option>
+                      <option>Other</option>
+                      <option>Prefer not to say</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Date of Birth</label>
+                    <div className="relative">
+                      <div
+                        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer"
+                        onClick={() => dateInputRef.current?.showPicker()}
+                      >
+                        <Image
+                          src="/calendar_icon.png"
+                          alt="Calendar"
+                          width={16}
+                          height={16}
+                          className="h-4 w-4"
+                        />
+                      </div>
+                      <input
+                        ref={dateInputRef}
+                        type="text"
+                        value={dobValue}
+                        onChange={(e) => setDobValue(e.target.value)}
+                        onClick={() => dateInputRef.current?.showPicker()}
+                        className="h-11 w-full rounded-lg border border-gray-200 px-3 pl-10 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Select date of birth"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Section 4 */}
+              <section className="space-y-4 border-t border-gray-200 pt-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                  Location
+                </h3>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Current City</label>
                     <input
-                      ref={dateInputRef}
                       type="text"
-                      value={dobValue}
-                      onChange={(e) => setDobValue(e.target.value)}
-                      onClick={() => dateInputRef.current?.showPicker()}
-                      className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
+                      value={cityValue}
+                      onChange={(e) => setCityValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Enter current city"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Current Country</label>
+                    <select
+                      value={countryValue}
+                      onChange={(e) => setCountryValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                    >
+                      <option value="">Select Country</option>
+                      <option>United States</option>
+                      <option>United Kingdom</option>
+                      <option>India</option>
+                      <option>Canada</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              {/* Section 5 */}
+              <section className="space-y-4 border-t border-gray-200 pt-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                  Professional Status
+                </h3>
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Employment Status</label>
+                    <select
+                      value={employmentValue}
+                      onChange={(e) => setEmploymentValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                    >
+                      <option value="">Select Status</option>
+                      <option>Employed</option>
+                      <option>Unemployed</option>
+                      <option>Self-Employed</option>
+                      <option>Student</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Passport Number</label>
+                    <input
+                      type="text"
+                      value={passportNumberValue}
+                      onChange={(e) => setPassportNumberValue(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Enter passport number"
                     />
                   </div>
                 </div>
-
-                {/* Current Country */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current Country
-                  </label>
-                  <select
-                    value={countryValue}
-                    onChange={(e) => setCountryValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white text-gray-900"
-                  >
-                    <option value="">Select Country</option>
-                    <option>United States</option>
-                    <option>United Kingdom</option>
-                    <option>India</option>
-                    <option>Canada</option>
-                  </select>
-                </div>
-
-                {/* Passport Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Passport Number
-                  </label>
-                  <input
-                    type="text"
-                    value={passportNumberValue}
-                    onChange={(e) => setPassportNumberValue(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-900"
-                    placeholder="Enter passport number"
-                  />
-                </div>
-                </div>
-              </div>
+              </section>
             </div>
+          </div>
 
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+          {/* Footer */}
+          <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white px-6 py-4">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={onClose}
                 className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm font-medium hover:bg-gray-50"

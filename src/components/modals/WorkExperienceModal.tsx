@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import GapExplanationModal, { GapExplanationData } from './GapExplanationModal';
+import ProfileDrawer from '../ui/ProfileDrawer';
 
 interface WorkExperienceModalProps {
   isOpen: boolean;
@@ -612,6 +613,15 @@ export default function WorkExperienceModal({
 
   if (!isOpen) return null;
 
+  const inputClassName =
+    'h-11 w-full rounded-lg border border-gray-200 px-4 text-sm transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-gray-300';
+  const selectClassName =
+    'h-11 w-full rounded-lg border border-gray-200 bg-white px-4 text-sm transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-gray-300';
+  const textareaClassName =
+    'min-h-[100px] w-full rounded-lg border border-gray-200 px-4 py-3 text-sm transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-gray-300 resize-none';
+  const sectionTitleClassName =
+    'text-sm font-semibold uppercase tracking-wide text-gray-500';
+
   return (
     <>
       {/* Gap Explanation Modal */}
@@ -639,68 +649,43 @@ export default function WorkExperienceModal({
         gapInfo={gapInfo || undefined}
       />
 
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="modal-placeholder-black bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">Work Experience</h2>
+      <ProfileDrawer
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Work Experience"
+        widthClassName="w-full max-w-[960px]"
+        footer={(
+          <div className="flex items-center justify-end gap-3">
             <button
               onClick={onClose}
-              className="text-[#9095A1] hover:text-gray-500"
+              className="h-10 rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="h-10 rounded-lg bg-orange-500 px-5 text-sm font-medium text-white transition-colors hover:bg-orange-600"
+            >
+              Save Work Experience
             </button>
           </div>
-
-          {/* Modal Body */}
-          <div className="px-6 py-6 space-y-6">
-            {/* Basic Information Section - Two Column Layout */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Left Column */}
-              <div className="space-y-4">
-                {/* Job Title */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Job Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={jobTitle}
-                    onChange={(e) => setJobTitle(e.target.value)}
-                    placeholder="e.g., Software Developer"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '14px',
-                    }}
-                  />
+        )}
+      >
+            {/* SECTION 1: ROLE DETAILS */}
+            <section className="space-y-4">
+              <h3 className={sectionTitleClassName}>Role Details</h3>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Job Title <span className="text-red-500">*</span></label>
+                  <input type="text" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="e.g., Software Developer" className={inputClassName} />
                 </div>
-
-                {/* Employment Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Employment Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={employmentType}
-                    onChange={(e) => setEmploymentType(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '14px',
-                    }}
-                  >
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Company Name <span className="text-red-500">*</span></label>
+                  <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="e.g., TCS, Deloitte, Amazon" className={inputClassName} />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Employment Type <span className="text-red-500">*</span></label>
+                  <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={selectClassName}>
                     <option value="">Select employment type</option>
                     <option value="full-time">Full-time</option>
                     <option value="part-time">Part-time</option>
@@ -709,63 +694,9 @@ export default function WorkExperienceModal({
                     <option value="freelance">Freelance</option>
                   </select>
                 </div>
-
-                {/* Number of Reportees */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Reportees
-                  </label>
-                  <input
-                    type="number"
-                    value={numberOfReportees}
-                    onChange={(e) => setNumberOfReportees(e.target.value)}
-                    placeholder="e.g., 5"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '14px',
-                    }}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    How many people directly reported to you in this role?
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-4">
-                {/* Company Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="e.g., TCS, Deloitte, Amazon"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '14px',
-                    }}
-                  />
-                </div>
-
-                {/* Industry / Domain */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Industry / Domain
-                  </label>
-                  <select
-                    value={industryDomain}
-                    onChange={(e) => setIndustryDomain(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '14px',
-                    }}
-                  >
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Industry / Domain</label>
+                  <select value={industryDomain} onChange={(e) => setIndustryDomain(e.target.value)} className={selectClassName}>
                     <option value="">Select Industry / Domain</option>
                     <option value="technology">Technology</option>
                     <option value="finance">Finance</option>
@@ -774,288 +705,169 @@ export default function WorkExperienceModal({
                     <option value="consulting">Consulting</option>
                   </select>
                 </div>
-              </div>
-            </div>
-
-            {/* Dates Section */}
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-900">Dates</h3>
-              <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Date <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => handleStartDateChange(e.target.value)}
-                    className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '14px',
-                    }}
-                  />
-                  <svg
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#9095A1] pointer-events-none"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Number of Reportees</label>
+                  <input type="number" value={numberOfReportees} onChange={(e) => setNumberOfReportees(e.target.value)} placeholder="e.g., 5" className={inputClassName} />
+                  <p className="text-xs text-gray-400">How many people directly reported to you in this role?</p>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  End Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    disabled={currentlyWorkHere}
-                    className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    style={{
-                      fontFamily: 'Inter, sans-serif',
-                      fontSize: '14px',
-                    }}
-                  />
-                  <svg
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#9095A1] pointer-events-none"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+            </section>
+
+            {/* SECTION 2: DURATION */}
+            <section className="space-y-4 border-t pt-6">
+              <h3 className={sectionTitleClassName}>Duration</h3>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Start Date <span className="text-red-500">*</span></label>
+                  <input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} className={inputClassName} />
                 </div>
-                <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={currentlyWorkHere}
-                    onChange={(e) => {
-                      setCurrentlyWorkHere(e.target.checked);
-                      if (e.target.checked) {
-                        setEndDate('');
-                      }
-                    }}
-                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded"
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">End Date</label>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={currentlyWorkHere} className={`${inputClassName} disabled:cursor-not-allowed disabled:bg-gray-100`} />
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={currentlyWorkHere}
+                      onChange={(e) => {
+                        setCurrentlyWorkHere(e.target.checked);
+                        if (e.target.checked) {
+                          setEndDate('');
+                        }
+                      }}
+                      className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    I currently work here
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            {/* SECTION 3: LOCATION & WORK MODE */}
+            <section className="space-y-4 border-t pt-6">
+              <h3 className={sectionTitleClassName}>Location & Work Mode</h3>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Work Location</label>
+                  <input type="text" value={workLocation} onChange={(e) => setWorkLocation(e.target.value)} placeholder="City, Country" className={inputClassName} />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Work Mode</label>
+                  <select value={workMode} onChange={(e) => setWorkMode(e.target.value)} className={selectClassName}>
+                    <option value="">Select work mode</option>
+                    <option value="remote">Remote</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="onsite">On-site</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            {/* SECTION 4: COMPANY DETAILS */}
+            <section className="space-y-4 border-t pt-6">
+              <h3 className={sectionTitleClassName}>Company Details</h3>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Company Profile</label>
+                  <textarea
+                    value={companyProfile}
+                    onChange={(e) => setCompanyProfile(e.target.value)}
+                    rows={3}
+                    className={`${textareaClassName} bg-white`}
+                    placeholder="Brief description of the company during your tenure (size, business focus)"
                   />
-                  <span className="text-sm text-blue-600 font-medium">I currently work here</span>
-                </label>
+                  <p className="mt-2 text-right text-xs text-gray-400">{companyProfile.length}/500</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Company Turnover</label>
+                  <select value={companyTurnover} onChange={(e) => setCompanyTurnover(e.target.value)} className={selectClassName}>
+                    <option value="">Select annual revenue</option>
+                    <option value="less-than-1m">Less than $1M</option>
+                    <option value="1m-10m">$1M - $10M</option>
+                    <option value="10m-50m">$10M - $50M</option>
+                    <option value="50m-100m">$50M - $100M</option>
+                    <option value="more-than-100m">More than $100M</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            </div>
+            </section>
 
-            {/* Location & Mode Section */}
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-900">Location & Mode</h3>
-              <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Work Location
-                </label>
-                <input
-                  type="text"
-                  value={workLocation}
-                  onChange={(e) => setWorkLocation(e.target.value)}
-                  placeholder="City, Country"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '14px',
-                  }}
-                />
+            {/* SECTION 5: ROLE CONTRIBUTION */}
+            <section className="space-y-4 border-t pt-6">
+              <h3 className={sectionTitleClassName}>Role Contribution</h3>
+              <div className="space-y-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-xs text-blue-700">Describe your impact, not just responsibilities</p>
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="col-span-2 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Key Responsibilities</label>
+                    <textarea value={keyResponsibilities} onChange={(e) => setKeyResponsibilities(e.target.value)} rows={4} className={`${textareaClassName} bg-white`} placeholder="Describe your main tasks, duties, and contributions..." />
+                  </div>
+                  <div className="col-span-2 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Achievements</label>
+                    <textarea value={achievements} onChange={(e) => setAchievements(e.target.value)} rows={4} className={`${textareaClassName} bg-white`} placeholder="Highlight major results, improvements, awards, metrics, etc." />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Work Mode
-                </label>
-                <select
-                  value={workMode}
-                  onChange={(e) => setWorkMode(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '14px',
-                  }}
-                >
-                  <option value="">Select work mode</option>
-                  <option value="remote">Remote</option>
-                  <option value="hybrid">Hybrid</option>
-                  <option value="onsite">On-site</option>
-                </select>
-              </div>
-            </div>
-            </div>
+            </section>
 
-            {/* Company Profile Section */}
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-900">Company Profile</h3>
-              <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Company Profile
-              </label>
-              <div className="relative">
-                <textarea
-                  value={companyProfile}
-                  onChange={(e) => setCompanyProfile(e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none pr-16"
-                  placeholder="Brief description of the company during your tenure (size, business focus)"
-                  style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '14px',
-                  }}
-                />
-                <p className="absolute bottom-3 right-3 text-xs text-gray-500">
-                  {companyProfile.length}/500
-                </p>
-              </div>
-            </div>
-            </div>
-
-            {/* Company Turnover Section */}
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-900">Company Turnover</h3>
-              <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Company Turnover
-              </label>
-              <select
-                value={companyTurnover}
-                onChange={(e) => setCompanyTurnover(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                style={{
-                  fontFamily: 'Inter, sans-serif',
-                  fontSize: '14px',
-                }}
-              >
-                <option value="">Select annual revenue</option>
-                <option value="less-than-1m">Less than $1M</option>
-                <option value="1m-10m">$1M - $10M</option>
-                <option value="10m-50m">$10M - $50M</option>
-                <option value="50m-100m">$50M - $100M</option>
-                <option value="more-than-100m">More than $100M</option>
-              </select>
-            </div>
-            </div>
-
-            {/* Role Details Section */}
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-900">Role Details</h3>
-              
-              {/* Key Responsibilities */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Key Responsibilities
-                </label>
-                <textarea
-                  value={keyResponsibilities}
-                  onChange={(e) => setKeyResponsibilities(e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder="Describe your main tasks, duties, and contributions..."
-                  style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '14px',
-                  }}
-                />
-              </div>
-
-              {/* Achievements */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Achievements
-                </label>
-                <textarea
-                  value={achievements}
-                  onChange={(e) => setAchievements(e.target.value)}
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder="Highlight major results, improvements, awards, metrics, etc."
-                  style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '14px',
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Skills Used Section */}
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-gray-900">Skills Used</h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Skills Used
-                </label>
-                <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={workSkillsInput}
-                  onChange={(e) => setWorkSkillsInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && workSkillsInput.trim()) {
-                      setWorkSkills([...workSkills, workSkillsInput.trim()]);
-                      setWorkSkillsInput('');
-                    }
-                  }}
-                  placeholder="Add skills you applied in this role..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '14px',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (workSkillsInput.trim()) {
-                      setWorkSkills([...workSkills, workSkillsInput.trim()]);
-                      setWorkSkillsInput('');
-                    }
-                  }}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                </button>
-              </div>
-              {workSkills.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {workSkills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm"
+            {/* SECTION 6: SKILLS & DOCUMENTS */}
+            <section className="space-y-4 border-t pt-6">
+              <h3 className={sectionTitleClassName}>Skills & Documents</h3>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="col-span-2 space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">Skills Used</label>
+                  <div className="grid grid-cols-12 gap-2">
+                    <input
+                      type="text"
+                      value={workSkillsInput}
+                      onChange={(e) => setWorkSkillsInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && workSkillsInput.trim()) {
+                          setWorkSkills([...workSkills, workSkillsInput.trim()]);
+                          setWorkSkillsInput('');
+                        }
+                      }}
+                      placeholder="Add skills you applied in this role..."
+                      className={`col-span-10 ${inputClassName}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (workSkillsInput.trim()) {
+                          setWorkSkills([...workSkills, workSkillsInput.trim()]);
+                          setWorkSkillsInput('');
+                        }
+                      }}
+                      className="col-span-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700"
                     >
-                      {skill}
-                      <button
-                        onClick={() => {
-                          setWorkSkills(workSkills.filter((_, i) => i !== index));
-                        }}
-                        className="text-blue-700 hover:text-blue-900"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
-                    </span>
-                  ))}
+                      Add
+                    </button>
+                  </div>
+                  {workSkills.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {workSkills.map((skill, index) => (
+                        <span key={index} className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
+                          {skill}
+                          <button
+                            onClick={() => {
+                              setWorkSkills(workSkills.filter((_, i) => i !== index));
+                            }}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            </div>
 
-            {/* Upload Documents Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Your Work Experience Certificates/Documents
-              </label>
+                <div className="col-span-2 space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Upload Your Work Experience Certificates/Documents
+                  </label>
               
               {/* Hidden file input */}
               <input
@@ -1074,10 +886,10 @@ export default function WorkExperienceModal({
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                className={`cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 ${
                   isDragging
                     ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-blue-400 bg-gray-50'
+                    : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'
                 }`}
               >
                 <svg
@@ -1097,7 +909,7 @@ export default function WorkExperienceModal({
                   <p className="text-sm text-gray-600">
                     <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">PDF, PNG, JPG (MAX. 5MB per file)</p>
+                  <p className="mt-1 text-xs text-gray-400">PDF, PNG, JPG (MAX. 5MB per file)</p>
                 </div>
               </div>
 
@@ -1159,7 +971,9 @@ export default function WorkExperienceModal({
                   ))}
                 </div>
               )}
-            </div>
+                </div>
+              </div>
+            </section>
 
             {/* Add Button */}
             {isFormComplete && (
@@ -1196,17 +1010,18 @@ export default function WorkExperienceModal({
               </div>
             )}
 
-            {/* Added Work Experiences List */}
+            {/* SECTION 7: ADDED EXPERIENCE PREVIEW */}
             {workExperiences.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900">Added Work Experiences</h3>
+              <section className="space-y-4 border-t pt-6">
+                <h3 className={sectionTitleClassName}>Added Experience Preview</h3>
                 {workExperiences.map((entry) => (
                   <div
                     key={entry.id}
-                    className="border border-gray-200 rounded-lg p-4 bg-white"
+                    className="rounded-xl border border-green-100 bg-green-50 p-4"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
+                        <p className="mb-1 text-xs font-medium text-green-700">✔ Successfully added experience</p>
                         <h4 className="text-sm font-semibold text-gray-900">
                           {entry.jobTitle} at {entry.companyName}
                         </h4>
@@ -1239,7 +1054,7 @@ export default function WorkExperienceModal({
                         <button
                           onClick={() => toggleExpandEntry(entry.id)}
                           className="text-gray-500 hover:text-gray-700 p-1"
-                          title="Expand"
+                          title="Edit"
                         >
                           <svg
                             width="16"
@@ -1321,27 +1136,9 @@ export default function WorkExperienceModal({
                     )}
                   </div>
                 ))}
-              </div>
+              </section>
             )}
-          </div>
-
-          {/* Modal Footer */}
-          <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-            >
-              Save Work Experience
-            </button>
-          </div>
-        </div>
-      </div>
+      </ProfileDrawer>
     </>
   );
 }

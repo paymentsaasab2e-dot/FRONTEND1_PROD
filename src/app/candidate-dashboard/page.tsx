@@ -1023,7 +1023,7 @@ export default function CandidateDashboardPage() {
           ) : null}
 
           {/* Dashboard grid */}
-          <div className="grid grid-cols-12 gap-5">
+          <div className="grid grid-cols-12 gap-x-5 gap-y-7">
             {/* Profile card */}
             <section className="col-span-12 lg:col-span-4">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 ease-out p-6">
@@ -1120,8 +1120,8 @@ export default function CandidateDashboardPage() {
             </section>
 
             {/* Top job matches */}
-            <section className="col-span-12 lg:col-span-8 lg:row-span-2">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 ease-out p-6">
+            <section className="col-span-12 lg:col-span-8 lg:row-span-2 lg:self-stretch">
+              <div className="h-full bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 ease-out p-6 flex flex-col">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">Top job matches</h2>
@@ -1138,7 +1138,7 @@ export default function CandidateDashboardPage() {
                   </button>
             </div>
 
-                <div className="mt-5 max-h-[min(520px,55vh)] overflow-y-auto pr-1 space-y-3">
+                <div className="mt-5 flex-1 min-h-[260px] max-h-[min(520px,55vh)] overflow-y-auto pr-1 space-y-3">
                   {!showTopMatchesLoading
                     ? topOpenJobMatches.map((job) => {
                         const loc = job.location?.trim() || "Location not specified";
@@ -1180,7 +1180,7 @@ export default function CandidateDashboardPage() {
                                 Open role
                                   </span>
                                 )}
-                            <span className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white">
+                            <span className="rounded-xl bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600">
                               Apply
                             </span>
                               </div>
@@ -1280,7 +1280,7 @@ export default function CandidateDashboardPage() {
                       <button
                         type="button"
                         onClick={() => router.push(`/courses/${course.id}`)}
-                        className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 transition"
+                        className="mt-4 w-full rounded-xl bg-[#28A8DF] px-3 py-2 text-sm font-semibold text-white transition hover:opacity-95"
                       >
                         Enroll
                       </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import ProfileDrawer from '../ui/ProfileDrawer';
 
 interface ResumeModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export default function ResumeModal({
   onSave,
   initialData,
 }: ResumeModalProps) {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [uploadedResume, setUploadedResume] = useState<{ name: string; date: string; size?: number } | null>(
     initialData?.fileName ? {
@@ -65,6 +67,7 @@ export default function ResumeModal({
   const resetForm = () => {
     setResumeFile(null);
     setUploadedResume(null);
+    setIsAnalyzing(false);
     setIsDragging(false);
     dragCounter.current = 0;
     if (fileInputRef.current) {
@@ -166,49 +169,35 @@ export default function ResumeModal({
       fileName: uploadedResume?.name,
       uploadedDate: uploadedResume?.date,
     });
+    setIsAnalyzing(false);
     onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-50"
-        onClick={onClose}
-      />
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="modal-placeholder-black bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-900">Upload / Update Resume</h2>
-            <button
-              onClick={onClose}
-              className="text-[#9095A1] hover:text-gray-600"
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Modal Content */}
-          <div className="p-6">
+    <ProfileDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Upload Resume"
+      widthClassName="w-[420px] max-w-full md:w-[480px]"
+      footer={(
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="h-10 rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:bg-orange-600"
+          >
+            Save Resume
+          </button>
+        </div>
+      )}
+    >
             <div className="space-y-6">
               {/* Drag and Drop Area */}
               <div
@@ -217,9 +206,12 @@ export default function ResumeModal({
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => !uploadedResume && fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${isDragging
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'
+                className={`cursor-pointer rounded-xl border-2 border-dashed text-center transition-all duration-200 ease-in-out ${
+                  isDragging
+                    ? 'scale-[1.01] border-blue-500 bg-blue-100 shadow-sm'
+                    : uploadedResume
+                      ? 'border-gray-300 bg-gray-50 p-8 hover:border-blue-400 hover:bg-blue-50'
+                      : 'border-gray-300 bg-gray-50 p-12 hover:border-blue-400 hover:bg-blue-50'
                   }`}
               >
                 <input
@@ -230,7 +222,7 @@ export default function ResumeModal({
                   className="hidden"
                 />
                 <svg
-                  className="mx-auto h-16 w-16 text-[#9095A1] mb-4"
+                  className="mx-auto mb-4 h-16 w-16 text-[#9095A1]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -242,24 +234,29 @@ export default function ResumeModal({
                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                   />
                 </svg>
-                <p className="text-lg font-medium text-gray-700 mb-2">
-                  Drag & drop your resume here
+                <p className="mb-2 text-lg font-semibold text-gray-800">
+                  Drag & drop your resume
                 </p>
-                <p className="text-sm text-gray-500 mb-4">
-                  or click to browse your device
+                <p className="mb-4 text-sm text-gray-500">
+                  or click to browse
                 </p>
                 <p className="text-xs text-[#9095A1]">
-                  Supported formats: PDF, DOC, DOCX (Max 5 MB)
+                  PDF, DOC, DOCX • Max 5 MB
                 </p>
               </div>
 
               {/* Uploaded File Section */}
               {uploadedResume && (
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
+                <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-sm">
+                  <div className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                    <span>✔</span>
+                    <span>Resume uploaded successfully</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex-shrink-0 rounded-lg bg-gray-100 p-2">
                       <svg
-                        className="w-10 h-10 text-[#9095A1]"
+                        className="h-6 w-6 text-[#9095A1]"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -272,23 +269,27 @@ export default function ResumeModal({
                         />
                       </svg>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 mb-1">
-                        {uploadedResume.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Uploaded on: {formatDateForDisplay(uploadedResume.date)}
-                      </p>
-                      {uploadedResume.size && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Size: {formatFileSize(uploadedResume.size)}
+                      <div className="min-w-0 space-y-1">
+                        <p
+                          className="truncate text-sm font-semibold text-gray-900"
+                          title={uploadedResume.name}
+                        >
+                          {uploadedResume.name}
                         </p>
-                      )}
+                        <p className="text-xs text-gray-500">
+                          Uploaded on {formatDateForDisplay(uploadedResume.date)}
+                        </p>
+                        {uploadedResume.size && (
+                          <p className="text-xs text-gray-500">
+                            Size: {formatFileSize(uploadedResume.size)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-shrink-0 items-center gap-4">
                       <button
                         onClick={handlePreview}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1 rounded-lg px-1 py-1 text-sm text-blue-600 transition-colors hover:bg-blue-50 hover:underline"
                         title="Preview"
                       >
                         <svg
@@ -308,7 +309,7 @@ export default function ResumeModal({
                       </button>
                       <button
                         onClick={handleReplace}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1 rounded-lg px-1 py-1 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
                         title="Replace"
                       >
                         <svg
@@ -329,7 +330,7 @@ export default function ResumeModal({
                       </button>
                       <button
                         onClick={handleDelete}
-                        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1 rounded-lg px-1 py-1 text-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-600"
                         title="Delete"
                       >
                         <svg
@@ -345,6 +346,7 @@ export default function ResumeModal({
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                         </svg>
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -352,9 +354,9 @@ export default function ResumeModal({
               )}
 
               {/* AI Features Section */}
-              <div className="border-t border-gray-200 pt-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+              <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                     <svg
                       className="w-4 h-4"
                       fill="none"
@@ -368,44 +370,49 @@ export default function ResumeModal({
                         d="M13 10V3L4 14h7v7l9-11h-7z"
                       />
                     </svg>
-                    Powered by SAASA B2E AI
+                    Powered by SAASA AI
                   </span>
                 </div>
-                <ul className="space-y-2">
+                <h3 className="text-base font-semibold text-blue-900">Enhance your resume with AI</h3>
+                <ul className="space-y-3">
                   <li className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 mt-1">•</span>
-                    <span>Auto-fill your profile information</span>
+                    <span className="mt-0.5 text-blue-600">✔</span>
+                    <span>Auto-fill profile details</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 mt-1">•</span>
-                    <span>Generate ATS-ready structure</span>
+                    <span className="mt-0.5 text-blue-600">✔</span>
+                    <span>Generate ATS-ready resume</span>
                   </li>
                   <li className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 mt-1">•</span>
+                    <span className="mt-0.5 text-blue-600">✔</span>
                     <span>Suggest missing keywords</span>
                   </li>
                 </ul>
+                <button
+                  type="button"
+                  onClick={() => setIsAnalyzing(true)}
+                  disabled={isAnalyzing}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-80"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <svg
+                        className="h-4 w-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                        <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Analyzing resume...
+                    </>
+                  ) : (
+                    'Run AI Analysis'
+                  )}
+                </button>
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
-              >
-                Save Resume
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </ProfileDrawer>
   );
 }

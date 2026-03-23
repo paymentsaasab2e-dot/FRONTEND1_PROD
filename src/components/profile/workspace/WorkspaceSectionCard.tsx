@@ -32,7 +32,7 @@ export function WorkspaceSectionCard({
   return (
     <div
       id={sectionId}
-      className={`rounded-2xl border border-gray-100 bg-white shadow-sm scroll-mt-[var(--profile-scroll-pad,7rem)] ${className}`.trim()}
+      className={`rounded-2xl border border-gray-100 bg-white shadow-sm scroll-mt-[120px] ${className}`.trim()}
     >
       <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-2.5 sm:px-5">
         <div className="flex min-w-0 items-center gap-2">
