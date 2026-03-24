@@ -12,30 +12,30 @@ const PRIMARY = '#28A8DF';
 const JOBS_PATH = '/explore-jobs';
 
 async function fetchWithRetry(
-  input: RequestInfo | URL,
-  init: RequestInit,
-  retries = 2,
-  retryDelayMs = 500
+    input: RequestInfo | URL,
+    init: RequestInit,
+    retries = 2,
+    retryDelayMs = 500
 ): Promise<Response> {
-  let lastError: unknown;
+    let lastError: unknown;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      return await fetch(input, init);
-    } catch (error) {
-      lastError = error;
-      if (attempt === retries) break;
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs * (attempt + 1)));
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await fetch(input, init);
+        } catch (error) {
+            lastError = error;
+            if (attempt === retries) break;
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs * (attempt + 1)));
+        }
     }
-  }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error('Network error while calling API');
+    throw lastError instanceof Error
+        ? lastError
+        : new Error('Network error while calling API');
 }
 
 export default function Header({ showNav = true }: { showNav?: boolean }) {
-  const router = useRouter();
+    const router = useRouter();
     const pathname = usePathname();
     const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -77,7 +77,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                     const result = await response.json();
                     if (result.success && result.data?.profile) {
                         const profile = result.data.profile;
-                        
+
                         // Set user name and email
                         if (profile.fullName) {
                             // Show only first name
@@ -90,14 +90,14 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                         if (typeof profile.profileCompleteness === 'number') {
                             setProfileCompletion(profile.profileCompleteness);
                         }
-                        
+
                         // Handle profile photo
                         if (profile.profilePhotoUrl) {
                             const photoUrl = profile.profilePhotoUrl;
-                            
+
                             if (photoUrl && photoUrl.trim() !== '') {
                                 let imageSrc: string;
-                                
+
                                 // Handle data URLs (base64 images) - use directly without modification
                                 if (photoUrl.startsWith('data:')) {
                                     imageSrc = photoUrl;
@@ -110,7 +110,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                                     const baseUrl = API_BASE_URL.replace('/api', '');
                                     const cleanPath = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`;
                                     imageSrc = `${baseUrl}${cleanPath}`;
-                                    
+
                                     // Validate URL before setting (skip validation for data URLs)
                                     try {
                                         new URL(imageSrc);
@@ -225,13 +225,13 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     }, [showJobSearch]);
 
     const isLandingPage = pathname === '/';
-    
+
     // Core public items
     const publicNavItems = [
         { label: 'Explore Jobs', path: '/explore-jobs' },
         { label: 'Courses', path: '/lms' },
         { label: 'Services', path: '/services' },
-        { label: 'Career Tools', path: '/aicveditor' },
+
     ];
 
     const navItems = isLandingPage ? publicNavItems : isLoggedIn ? [
@@ -275,388 +275,388 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
 
     return (
         <>
-        <header
-            ref={headerShellRef}
-            className="fixed top-0 left-0 right-0 z-[300] w-full border-b border-slate-200/50 bg-white/45 px-4 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-5 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/35"
-        >
-            <div className="mx-auto flex max-w-7xl items-center justify-between">
-                {/* Left: Logo and Hamburger */}
-                <div className="flex items-center gap-4">
-                    {/* Hamburger Button - Mobile only */}
-                    <button
-                        type="button"
-                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        className="hamburger-button p-2 text-slate-600 hover:text-slate-800 lg:hidden transition-colors"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+            <header
+                ref={headerShellRef}
+                className="fixed top-0 left-0 right-0 z-[300] w-full border-b border-slate-200/50 bg-white/45 px-4 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-5 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/35"
+            >
+                <div className="mx-auto flex max-w-7xl items-center justify-between">
+                    {/* Left: Logo and Hamburger */}
+                    <div className="flex items-center gap-4">
+                        {/* Hamburger Button - Mobile only */}
+                        <button
+                            type="button"
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className="hamburger-button p-2 text-slate-600 hover:text-slate-800 lg:hidden transition-colors"
                         >
-                            {isMobileMenuOpen ? (
-                                <path d="M18 6L6 18M6 6l12 12" />
-                            ) : (
-                                <path d="M4 12h16M4 6h16M4 18h16" />
-                            )}
-                        </svg>
-                    </button>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                {isMobileMenuOpen ? (
+                                    <path d="M18 6L6 18M6 6l12 12" />
+                                ) : (
+                                    <path d="M4 12h16M4 6h16M4 18h16" />
+                                )}
+                            </svg>
+                        </button>
 
-                    <Image
-                        src="/SAASA%20Logo.png"
-                        alt="SAASA B2E"
-                        width={110}
-                        height={32}
-                        className="h-8 w-auto cursor-pointer"
-                        onClick={() => router.push('/candidate-dashboard')}
-                    />
-                </div>
+                        <Image
+                            src="/SAASA%20Logo.png"
+                            alt="SAASA B2E"
+                            width={110}
+                            height={32}
+                            className="h-8 w-auto cursor-pointer"
+                            onClick={() => router.push('/candidate-dashboard')}
+                        />
+                    </div>
 
-                {/* Navigation Container - Desktop only */}
-                {showNav ? (
-                    <nav
-                        ref={navRef}
-                        className="relative hidden lg:flex min-w-0 max-w-[900px] items-center justify-center gap-1 overflow-visible rounded-full border border-white/50 bg-white/50 px-3 py-2 shadow-[0_2px_16px_rgba(15,23,42,0.08)] backdrop-blur-xl backdrop-saturate-150"
-                    >
-                        {/* ── Tabs row + Search trigger pill ──────────────────────────────── */}
-                        <div className="flex w-full items-center">
-                            <LayoutGroup id="header-main-nav">
-                                <div className="relative flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full">
+                    {/* Navigation Container - Desktop only */}
+                    {showNav ? (
+                        <nav
+                            ref={navRef}
+                            className="relative hidden lg:flex min-w-0 max-w-[900px] items-center justify-center gap-1 overflow-visible rounded-full border border-white/50 bg-white/50 px-3 py-2 shadow-[0_2px_16px_rgba(15,23,42,0.08)] backdrop-blur-xl backdrop-saturate-150"
+                        >
+                            {/* ── Tabs row + Search trigger pill ──────────────────────────────── */}
+                            <div className="flex w-full items-center">
+                                <LayoutGroup id="header-main-nav">
+                                    <div className="relative flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full">
+                                        {navItems.map((item) => {
+                                            const active = isActive(item.path);
+                                            return (
+                                                <button
+                                                    key={item.path}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (item.path === JOBS_PATH && active) {
+                                                            handleJobsToggleSearch();
+                                                        } else {
+                                                            handleTabClick(item.path);
+                                                        }
+                                                    }}
+                                                    className={`relative z-10 flex min-w-[72px] flex-1 items-center justify-center gap-1 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ease-in-out sm:min-w-[80px] sm:flex-none ${active
+                                                        ? 'text-white'
+                                                        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                                                        }`}
+                                                    style={{ fontFamily: 'Inter, sans-serif' }}
+                                                >
+                                                    {active && (
+                                                        <motion.div
+                                                            layoutId="nav-pill"
+                                                            className="pointer-events-none absolute inset-0 z-0 rounded-full"
+                                                            style={{ backgroundColor: PRIMARY }}
+                                                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                                                        />
+                                                    )}
+                                                    <span className="relative z-10">{item.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </LayoutGroup>
+
+                                {/* Search Jobs trigger — Framer Motion width + fade */}
+                                <AnimatePresence>
+                                    {isJobsPage && !showJobSearch && (
+                                        <motion.div
+                                            key="search-trigger"
+                                            initial={{ width: 0, opacity: 0, marginLeft: 0 }}
+                                            animate={{ width: 148, opacity: 1, marginLeft: 16 }}
+                                            exit={{ width: 0, opacity: 0, marginLeft: 0 }}
+                                            transition={{
+                                                width: { duration: 0.38, ease: [0.4, 0, 0.2, 1], delay: 0.08 },
+                                                opacity: { duration: 0.22, ease: 'easeOut', delay: 0.14 },
+                                                marginLeft: { duration: 0.38, ease: [0.4, 0, 0.2, 1], delay: 0.08 },
+                                            }}
+                                            className="overflow-hidden"
+                                            style={{ flexShrink: 0 }}
+                                        >
+                                            <motion.button
+                                                type="button"
+                                                onClick={handleSearchJobsButtonClick}
+                                                aria-label="Search jobs"
+                                                initial={{ scale: 0.9, y: -6 }}
+                                                animate={{ scale: 1, y: 0 }}
+                                                exit={{ scale: 0.9, y: -6 }}
+                                                transition={{ duration: 0.22, ease: 'easeOut', delay: 0.18 }}
+                                                className="flex items-center gap-2 text-xs xl:text-sm font-medium text-gray-500 hover:text-gray-900 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors"
+                                            >
+                                                <motion.span
+                                                    initial={{ opacity: 0, rotate: -15 }}
+                                                    animate={{ opacity: 1, rotate: 0 }}
+                                                    exit={{ opacity: 0 }}
+                                                    transition={{ duration: 0.2, delay: 0.22 }}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <circle cx="11" cy="11" r="8" />
+                                                        <path d="m21 21-4.35-4.35" />
+                                                    </svg>
+                                                </motion.span>
+                                                <span className="hidden xl:inline">Search Jobs</span>
+                                            </motion.button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* ── Expanded search overlay — drops down below the nav pill ──────── */}
+                            <AnimatePresence>
+                                {showJobSearch && (
+                                    <motion.div
+                                        key="search-overlay"
+                                        initial={{ opacity: 0, y: -10, scaleY: 0.94 }}
+                                        animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                                        exit={{ opacity: 0, y: -10, scaleY: 0.94 }}
+                                        transition={{ duration: 0.26, ease: [0.34, 1.3, 0.64, 1] }}
+                                        style={{ transformOrigin: 'top center' }}
+                                        className="absolute left-0 right-0 top-full mt-3 z-40"
+                                    >
+                                        <div className="w-full max-w-3xl mx-auto px-4">
+                                            <motion.div
+                                                className="relative rounded-full"
+                                                initial={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
+                                                animate={{ boxShadow: '0 0 0 3px rgba(40,168,225,0.18), 0 14px 36px rgba(0,0,0,0.13)' }}
+                                                transition={{ duration: 0.3, ease: 'easeOut' }}
+                                            >
+                                                {/* Icon inside input — fades in with slight delay */}
+                                                <motion.div
+                                                    initial={{ opacity: 0, scale: 0.75 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.75 }}
+                                                    transition={{ duration: 0.18, delay: 0.12 }}
+                                                    className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <circle cx="11" cy="11" r="8" />
+                                                        <path d="m21 21-4.35-4.35" />
+                                                    </svg>
+                                                </motion.div>
+
+                                                <input
+                                                    ref={searchInputRef}
+                                                    type="text"
+                                                    value={jobSearchValue}
+                                                    onChange={(e) => setJobSearchValue(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') { e.preventDefault(); handleSearch(); }
+                                                        if (e.key === 'Escape') { setShowJobSearch(false); }
+                                                    }}
+                                                    placeholder="I am looking for the Data Analyst role in Yaoundé"
+                                                    className="w-full rounded-full border bg-white pl-12 pr-14 py-4 text-base focus:outline-none focus:ring-2 focus:ring-offset-0"
+                                                    style={{
+                                                        borderColor: 'var(--border-color)',
+                                                        fontFamily: 'Inter, sans-serif',
+                                                        ['--tw-ring-color' as string]: 'rgba(40,168,225,0.35)',
+                                                    }}
+                                                />
+
+                                                {/* Submit button — pops in */}
+                                                <motion.button
+                                                    type="button"
+                                                    onClick={handleSearch}
+                                                    aria-label="Search jobs"
+                                                    initial={{ opacity: 0, scale: 0.7 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.7 }}
+                                                    transition={{ duration: 0.18, delay: 0.14 }}
+                                                    whileHover={{ scale: 1.08 }}
+                                                    whileTap={{ scale: 0.93 }}
+                                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full text-white"
+                                                    style={{ backgroundColor: PRIMARY }}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <circle cx="11" cy="11" r="8" />
+                                                        <path d="m21 21-4.35-4.35" />
+                                                    </svg>
+                                                </motion.button>
+                                            </motion.div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </nav>
+                    ) : null}
+
+                    {/* Mobile Menu Overlay */}
+                    {isMobileMenuOpen && (
+                        <div className="mobile-menu fixed inset-0 z-10002 lg:hidden">
+                            {/* Backdrop */}
+                            <div
+                                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            />
+
+                            {/* Menu Content */}
+                            <nav className="absolute left-0 top-0 h-full w-64 bg-white shadow-2xl p-6 flex flex-col gap-4 animate-in slide-in-from-left duration-300">
+                                <div className="flex items-center justify-between mb-8">
+                                    <Image
+                                        src="/SAASA%20Logo.png"
+                                        alt="SAASA B2E"
+                                        width={100}
+                                        height={28}
+                                        className="h-6 w-auto"
+                                    />
+                                    <button
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="p-1 text-slate-400 hover:text-slate-600"
+                                    >
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M18 6L6 18M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
                                     {navItems.map((item) => {
                                         const active = isActive(item.path);
                                         return (
                                             <button
                                                 key={item.path}
-                                                type="button"
                                                 onClick={() => {
-                                                    if (item.path === JOBS_PATH && active) {
-                                                        handleJobsToggleSearch();
-                                                    } else {
-                                                        handleTabClick(item.path);
-                                                    }
+                                                    router.push(item.path);
+                                                    setIsMobileMenuOpen(false);
                                                 }}
-                                                className={`relative z-10 flex min-w-[72px] flex-1 items-center justify-center gap-1 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ease-in-out sm:min-w-[80px] sm:flex-none ${active
-                                                    ? 'text-white'
-                                                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                                                className={`flex items-center px-4 py-3 rounded-full text-sm font-semibold transition-all duration-200 ${active
+                                                    ? 'bg-slate-800 text-white shadow-md'
+                                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                                                     }`}
-                                                style={{ fontFamily: 'Inter, sans-serif' }}
                                             >
-                                                {active && (
-                                                    <motion.div
-                                                        layoutId="nav-pill"
-                                                        className="pointer-events-none absolute inset-0 z-0 rounded-full"
-                                                        style={{ backgroundColor: PRIMARY }}
-                                                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                                                    />
-                                                )}
-                                                <span className="relative z-10">{item.label}</span>
+                                                {item.label}
                                             </button>
                                         );
                                     })}
                                 </div>
-                            </LayoutGroup>
-
-                            {/* Search Jobs trigger — Framer Motion width + fade */}
-                            <AnimatePresence>
-                                {isJobsPage && !showJobSearch && (
-                                    <motion.div
-                                        key="search-trigger"
-                                        initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-                                        animate={{ width: 148, opacity: 1, marginLeft: 16 }}
-                                        exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-                                        transition={{
-                                            width: { duration: 0.38, ease: [0.4, 0, 0.2, 1], delay: 0.08 },
-                                            opacity: { duration: 0.22, ease: 'easeOut', delay: 0.14 },
-                                            marginLeft: { duration: 0.38, ease: [0.4, 0, 0.2, 1], delay: 0.08 },
-                                        }}
-                                        className="overflow-hidden"
-                                        style={{ flexShrink: 0 }}
-                                    >
-                                        <motion.button
-                                            type="button"
-                                            onClick={handleSearchJobsButtonClick}
-                                            aria-label="Search jobs"
-                                            initial={{ scale: 0.9, y: -6 }}
-                                            animate={{ scale: 1, y: 0 }}
-                                            exit={{ scale: 0.9, y: -6 }}
-                                            transition={{ duration: 0.22, ease: 'easeOut', delay: 0.18 }}
-                                            className="flex items-center gap-2 text-xs xl:text-sm font-medium text-gray-500 hover:text-gray-900 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors"
-                                        >
-                                            <motion.span
-                                                initial={{ opacity: 0, rotate: -15 }}
-                                                animate={{ opacity: 1, rotate: 0 }}
-                                                exit={{ opacity: 0 }}
-                                                transition={{ duration: 0.2, delay: 0.22 }}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <circle cx="11" cy="11" r="8" />
-                                                    <path d="m21 21-4.35-4.35" />
-                                                </svg>
-                                            </motion.span>
-                                            <span className="hidden xl:inline">Search Jobs</span>
-                                        </motion.button>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* ── Expanded search overlay — drops down below the nav pill ──────── */}
-                        <AnimatePresence>
-                            {showJobSearch && (
-                                <motion.div
-                                    key="search-overlay"
-                                    initial={{ opacity: 0, y: -10, scaleY: 0.94 }}
-                                    animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                                    exit={{ opacity: 0, y: -10, scaleY: 0.94 }}
-                                    transition={{ duration: 0.26, ease: [0.34, 1.3, 0.64, 1] }}
-                                    style={{ transformOrigin: 'top center' }}
-                                    className="absolute left-0 right-0 top-full mt-3 z-40"
-                                >
-                                    <div className="w-full max-w-3xl mx-auto px-4">
-                                        <motion.div
-                                            className="relative rounded-full"
-                                            initial={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}
-                                            animate={{ boxShadow: '0 0 0 3px rgba(40,168,225,0.18), 0 14px 36px rgba(0,0,0,0.13)' }}
-                                            transition={{ duration: 0.3, ease: 'easeOut' }}
-                                        >
-                                            {/* Icon inside input — fades in with slight delay */}
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.75 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.75 }}
-                                                transition={{ duration: 0.18, delay: 0.12 }}
-                                                className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <circle cx="11" cy="11" r="8" />
-                                                    <path d="m21 21-4.35-4.35" />
-                                                </svg>
-                                            </motion.div>
-
-                                            <input
-                                                ref={searchInputRef}
-                                                type="text"
-                                                value={jobSearchValue}
-                                                onChange={(e) => setJobSearchValue(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') { e.preventDefault(); handleSearch(); }
-                                                    if (e.key === 'Escape') { setShowJobSearch(false); }
-                                                }}
-                                                placeholder="I am looking for the Data Analyst role in Yaoundé"
-                                                className="w-full rounded-full border bg-white pl-12 pr-14 py-4 text-base focus:outline-none focus:ring-2 focus:ring-offset-0"
-                                                style={{
-                                                    borderColor: 'var(--border-color)',
-                                                    fontFamily: 'Inter, sans-serif',
-                                                    ['--tw-ring-color' as string]: 'rgba(40,168,225,0.35)',
-                                                }}
-                                            />
-
-                                            {/* Submit button — pops in */}
-                                            <motion.button
-                                                type="button"
-                                                onClick={handleSearch}
-                                                aria-label="Search jobs"
-                                                initial={{ opacity: 0, scale: 0.7 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.7 }}
-                                                transition={{ duration: 0.18, delay: 0.14 }}
-                                                whileHover={{ scale: 1.08 }}
-                                                whileTap={{ scale: 0.93 }}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full text-white"
-                                                style={{ backgroundColor: PRIMARY }}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                    <circle cx="11" cy="11" r="8" />
-                                                    <path d="m21 21-4.35-4.35" />
-                                                </svg>
-                                            </motion.button>
-                                        </motion.div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </nav>
-                ) : null}
-
-                {/* Mobile Menu Overlay */}
-                {isMobileMenuOpen && (
-                    <div className="mobile-menu fixed inset-0 z-10002 lg:hidden">
-                        {/* Backdrop */}
-                        <div
-                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        />
-
-                        {/* Menu Content */}
-                        <nav className="absolute left-0 top-0 h-full w-64 bg-white shadow-2xl p-6 flex flex-col gap-4 animate-in slide-in-from-left duration-300">
-                            <div className="flex items-center justify-between mb-8">
-                                <Image
-                                    src="/SAASA%20Logo.png"
-                                    alt="SAASA B2E"
-                                    width={100}
-                                    height={28}
-                                    className="h-6 w-auto"
-                                />
-                                <button
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="p-1 text-slate-400 hover:text-slate-600"
-                                >
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M18 6L6 18M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                {navItems.map((item) => {
-                                    const active = isActive(item.path);
-                                    return (
-                                        <button
-                                            key={item.path}
-                                            onClick={() => {
-                                                router.push(item.path);
-                                                setIsMobileMenuOpen(false);
-                                            }}
-                                            className={`flex items-center px-4 py-3 rounded-full text-sm font-semibold transition-all duration-200 ${active
-                                                ? 'bg-slate-800 text-white shadow-md'
-                                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-                                                }`}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </nav>
-                    </div>
-                )}
-
-                {/* Right side icons - Settings, Notifications, Profile / Login */}
-                <div className="flex items-center gap-3">
-                    {isLoggedIn && !isLandingPage ? (
-                        <>
-                            {/* Notifications trigger */}
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsNotificationsModalOpen(!isNotificationsModalOpen);
-                                        setIsProfileModalOpen(false);
-                                    }}
-                                    className="relative p-2 text-slate-600 hover:text-slate-800 transition-colors"
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="20"
-                                        height="20"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            {/* Profile trigger */}
-                            {profilePhotoUrl ? (
-                                <div className="relative profile-button">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsProfileModalOpen(!isProfileModalOpen);
-                                            setIsNotificationsModalOpen(false);
-                                        }}
-                                        className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300"
-                                    >
-                                        <Image
-                                            src={profilePhotoUrl}
-                                            alt="User avatar"
-                                            width={32}
-                                            height={32}
-                                            className="h-8 w-8 object-cover"
-                                            unoptimized
-                                        />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="relative profile-button">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsProfileModalOpen(!isProfileModalOpen);
-                                            setIsNotificationsModalOpen(false);
-                                        }}
-                                        className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300 flex items-center justify-center text-xs font-semibold text-slate-600"
-                                    >
-                                        {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="hidden sm:flex items-center gap-4">
-                            <button
-                                type="button"
-                                onClick={() => router.push('/employers')}
-                                className="text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mr-2"
-                            >
-                                For Employers
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => router.push('/whatsapp')}
-                                className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-                            >
-                                Log In
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => router.push('/whatsapp')}
-                                className="rounded-full bg-[#28A8DF] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
-                            >
-                                Sign Up
-                            </button>
+                            </nav>
                         </div>
                     )}
+
+                    {/* Right side icons - Settings, Notifications, Profile / Login */}
+                    <div className="flex items-center gap-3">
+                        {isLoggedIn && !isLandingPage ? (
+                            <>
+                                {/* Notifications trigger */}
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsNotificationsModalOpen(!isNotificationsModalOpen);
+                                            setIsProfileModalOpen(false);
+                                        }}
+                                        className="relative p-2 text-slate-600 hover:text-slate-800 transition-colors"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="20"
+                                            height="20"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        >
+                                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {/* Profile trigger */}
+                                {profilePhotoUrl ? (
+                                    <div className="relative profile-button">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsProfileModalOpen(!isProfileModalOpen);
+                                                setIsNotificationsModalOpen(false);
+                                            }}
+                                            className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300"
+                                        >
+                                            <Image
+                                                src={profilePhotoUrl}
+                                                alt="User avatar"
+                                                width={32}
+                                                height={32}
+                                                className="h-8 w-8 object-cover"
+                                                unoptimized
+                                            />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="relative profile-button">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsProfileModalOpen(!isProfileModalOpen);
+                                                setIsNotificationsModalOpen(false);
+                                            }}
+                                            className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300 flex items-center justify-center text-xs font-semibold text-slate-600"
+                                        >
+                                            {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="hidden sm:flex items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => router.push('/employers')}
+                                    className="text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mr-2"
+                                >
+                                    For Employers
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => router.push('/whatsapp')}
+                                    className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                                >
+                                    Log In
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => router.push('/whatsapp')}
+                                    className="rounded-full bg-[#28A8DF] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
+                                >
+                                    Sign Up
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-        </header>
-        <div
-            aria-hidden
-            data-app-header-spacer
-            className="w-full shrink-0"
-            style={{ height: headerSpacerPx }}
-        />
-        <NotificationPanel
-            isOpen={isNotificationsModalOpen}
-            onClose={() => setIsNotificationsModalOpen(false)}
-            onNavigate={(path) => {
-                router.push(path);
-                setIsNotificationsModalOpen(false);
-            }}
-        />
-        <ProfilePanel
-            isOpen={isProfileModalOpen}
-            onClose={() => setIsProfileModalOpen(false)}
-            onNavigate={(path) => {
-                router.push(path);
-                setIsProfileModalOpen(false);
-            }}
-            profilePhotoUrl={profilePhotoUrl}
-            userName={userName}
-            userEmail={userEmail}
-            profileCompletion={profileCompletion}
-        />
+            </header>
+            <div
+                aria-hidden
+                data-app-header-spacer
+                className="w-full shrink-0"
+                style={{ height: headerSpacerPx }}
+            />
+            <NotificationPanel
+                isOpen={isNotificationsModalOpen}
+                onClose={() => setIsNotificationsModalOpen(false)}
+                onNavigate={(path) => {
+                    router.push(path);
+                    setIsNotificationsModalOpen(false);
+                }}
+            />
+            <ProfilePanel
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+                onNavigate={(path) => {
+                    router.push(path);
+                    setIsProfileModalOpen(false);
+                }}
+                profilePhotoUrl={profilePhotoUrl}
+                userName={userName}
+                userEmail={userEmail}
+                profileCompletion={profileCompletion}
+            />
         </>
     );
 }
