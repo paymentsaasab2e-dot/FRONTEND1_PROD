@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { ArrowRight, Sparkles, AlertCircle, FileText, UploadCloud, FileUp, Phone } from "lucide-react";
 
 import { API_BASE_URL } from '@/lib/api-base';
 
@@ -123,280 +124,183 @@ export default function UploadCV() {
   };
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background:
-          "radial-gradient(ellipse 800px 600px at bottom left, #bae6fd 0%, #dbeafe 30%, transparent 70%), radial-gradient(ellipse 800px 600px at 80% 60%, #fed7aa 0%, #fde2e4 30%, transparent 70%), white",
-      }}
-    >
+    <div className="min-h-screen bg-[#FCFDFE] text-slate-900 flex flex-col relative overflow-hidden font-sans">
+      {/* Background Soft AI Glow */}
+      <div className="absolute top-0 right-0 -mr-[10%] -mt-[10%] w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(40,168,225,0.08)_0,rgba(255,255,255,0)_60%)] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 -ml-[10%] -mb-[10%] w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(40,168,225,0.05)_0,rgba(255,255,255,0)_60%)] pointer-events-none" />
+
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2">
+      <header className="flex flex-none items-center justify-between px-6 py-6 relative z-10 mx-auto w-full max-w-[1240px]">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
           <Image
             src="/SAASA%20Logo.png"
             alt="SAASA B2E"
-            width={110}
-            height={32}
+            width={120}
+            height={36}
             className="h-8 w-auto"
           />
         </div>
-        <a href="#" className="text-sm font-semibold text-sky-600 hover:text-sky-700">
-          Help
+        <a href="#" className="text-[13px] font-bold text-sky-600 hover:text-sky-700 transition-colors uppercase tracking-widest">
+          Help 
         </a>
       </header>
 
-      {/* Main content */}
-      <main className="flex min-h-[calc(100vh-160px)] items-center justify-center px-4 py-8">
-        <div
-          style={{
-            width: "539px",
-            height: "535px",
-            borderRadius: "6px",
-            border: "1px solid #28A8E1",
-            backgroundColor: "#F8F9FA",
-          }}
-        >
-          <div className="px-10 py-12 text-center">
-            <h1
-              className="font-semibold text-slate-900"
-              style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: "27px",
-                lineHeight: "30.4px",
-                letterSpacing: "0%",
-              }}
-            >
-              Upload Your CV
-            </h1>
-            <p
-              className="mt-2 text-center font-normal text-slate-600"
-              style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: "15.95px",
-                lineHeight: "24.8px",
-                letterSpacing: "0px",
-              }}
-            >
-              SAASA B2E will analyze your CV and auto-fill your profile using AI.
-              <br />
-              This saves time and boosts accuracy.
-            </p>
-
-            {/* Cards */}
-            <div className="mt-8 flex gap-6 justify-center">
-              {/* Upload from computer */}
-              <div
-                className="flex flex-col rounded-lg border border-slate-200 px-6 py-6"
-                style={{
-                  width: "203.79px",
-                  height: "228.6px",
-                  backgroundColor: "#FFFFFF",
-                }}
-              >
-                <div className="mb-3 flex justify-center">
-                  <Image
-                    src="/desktop_icon.png"
-                    alt="Desktop"
-                    width={28}
-                    height={28}
-                    className="h-7 w-7"
-                  />
-                </div>
-                <p
-                  className="text-center font-medium text-slate-900"
-                  style={{
-                    fontFamily: "Poppins, sans-serif",
-                    fontSize: "15.95px",
-                    lineHeight: "24.8px",
-                    letterSpacing: "0px",
-                  }}
-                >
-                  Upload from your computer
-                </p>
-                <p className="mt-2 text-center text-sm text-slate-600">
-                  Browse your local files
-                  <br />
-                  to upload your CV.
-                </p>
-                <div className="mt-5 flex justify-center">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileSelect}
-                    accept=".pdf,.doc,.docx"
-                    style={{ display: "none" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleChooseFile}
-                    disabled={isUploading}
-                    className="text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-                    style={{
-                      width: "173.07px",
-                      height: "35.44px",
-                      borderRadius: "5px",
-                      backgroundColor: "#239CD2",
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: "13px",
-                      fontWeight: "500",
-                      lineHeight: "normal",
-                    }}
-                  >
-                    {selectedFile ? "Change File" : "Choose File"}
-                  </button>
-                </div>
-                {selectedFile && (
-                  <div className="mt-3 text-center">
-                    <p className="text-sm text-slate-600">
-                      Selected: {selectedFile.name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Send via WhatsApp */}
-              <div
-                className="flex flex-col rounded-lg border border-slate-200 px-6 py-6"
-                style={{
-                  width: "203.79px",
-                  height: "228.6px",
-                  backgroundColor: "#FFFFFF",
-                }}
-              >
-                <div className="mb-3 flex justify-center">
-                  <Image
-                    src="/chat_icon.png"
-                    alt="WhatsApp"
-                    width={28}
-                    height={28}
-                    className="h-7 w-7"
-                  />
-                </div>
-                <p
-                  className="text-center font-medium text-slate-900"
-                  style={{
-                    fontFamily: "Poppins, sans-serif",
-                    fontSize: "15.95px",
-                    lineHeight: "24.8px",
-                    letterSpacing: "0px",
-                  }}
-                >
-                  Send via WhatsApp
-                </p>
-                <p className="mt-2 text-center text-sm text-slate-600">
-                  Easily share your CV from your phone via WhatsApp.
-                </p>
-                <div className="mt-6 flex justify-center">
-                  <button
-                    type="button"
-                    className="text-white shadow-sm transition hover:opacity-90"
-                    style={{
-                      width: "173.07px",
-                      height: "35.44px",
-                      borderRadius: "5px",
-                      backgroundColor: "#239CD2",
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: "13px",
-                      fontWeight: "500",
-                      lineHeight: "normal",
-                    }}
-                  >
-                    Open WhatsApp
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Upload Button */}
-            {selectedFile && (
-              <div className="mt-10 flex justify-center">
-                <button
-                  type="button"
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                  className="text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-                  style={{
-                    width: "200px",
-                    height: "40px",
-                    borderRadius: "5px",
-                    backgroundColor: isUploading ? "#94a3b8" : "#239CD2",
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    lineHeight: "normal",
-                  }}
-                >
-                  {isUploading ? `Uploading... ${Math.round(uploadProgress)}%` : "Upload & Process CV"}
-                </button>
-              </div>
-            )}
-
-            {/* Progress Bar */}
-            {isUploading && (
-              <div className="mt-4 px-10">
-                <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-sky-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {error && (
-              <div className="mt-4 px-10">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-600 text-center">{error}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Success Message */}
-            {success && (
-              <div className="mt-4 px-10">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <p className="text-sm text-green-600 text-center">{success}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Note */}
-            <div className="mt-10 space-y-2 text-center text-sm text-slate-600">
-              <p>
-                <span className="text-sky-500">ℹ</span> Supported formats: PDF, DOC, DOCX. Max size:
-                5 MB.
-              </p>
-              <p>
-                Our AI will intelligently extract and analyze your CV data using Gemini AI.
-              </p>
-            </div>
+      {/* Main content centered */}
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full mb-12">
+        
+        {/* The Card Shell (Wider for upload zone) */}
+        <div className="w-full max-w-[560px] bg-white rounded-[24px] shadow-[0_20px_40px_rgba(0,0,0,0.06)] border border-slate-100 p-8 sm:p-10 relative overflow-hidden">
+          
+          <div className="w-16 h-16 bg-sky-50 rounded-[18px] flex items-center justify-center mx-auto mb-6 shadow-sm border border-sky-100">
+            <Sparkles className="w-7 h-7 text-sky-500" />
           </div>
+
+          <div className="mb-10 text-center">
+            <h1 className="text-[26px] font-black text-slate-900 tracking-tight leading-tight">
+              Let's build your AI Profile
+            </h1>
+            <p className="mt-2 text-[15px] font-medium text-slate-500 leading-relaxed max-w-[400px] mx-auto">
+              Upload your CV. Our AI will instantly extract your skills, experience, and education for your dashboard.
+            </p>
+          </div>
+
+          {!selectedFile ? (
+            <div className="space-y-4">
+              {/* OPTION A: Upload from computer (PRIMARY) */}
+              <div 
+                 className="relative w-full rounded-2xl border-2 border-dashed border-slate-200 hover:border-sky-400 hover:bg-sky-50/30 bg-slate-50 transition-all cursor-pointer overflow-hidden group"
+                 onClick={handleChooseFile}
+              >
+                 <div className="p-8 flex flex-col items-center justify-center text-center relative z-10">
+                   <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 border border-slate-100 group-hover:scale-110 transition-transform">
+                     <UploadCloud className="w-6 h-6 text-slate-400 group-hover:text-sky-500 transition-colors" />
+                   </div>
+                   <p className="text-[16px] font-bold text-slate-900 mb-1 pointer-events-none group-hover:text-sky-700 transition-colors">
+                     Upload from computer
+                   </p>
+                   <p className="text-[13px] font-medium text-slate-500 pointer-events-none">
+                     Click to browse or drag file here
+                   </p>
+                 </div>
+              </div>
+
+              {/* OPTION B: Upload via WhatsApp (SECONDARY) */}
+              <div className="w-full rounded-2xl border border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/20 transition-all cursor-pointer group p-5 flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
+                      <Phone className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[15px] font-bold text-slate-800 group-hover:text-emerald-700 transition-colors">
+                        Send via WhatsApp
+                      </p>
+                      <p className="text-[13px] font-medium text-slate-500">
+                        Send your CV from your phone
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 transition-translate group-hover:translate-x-1" />
+              </div>
+            </div>
+          ) : (
+            /* FILE SELECTED STATE */
+            <div className="space-y-6">
+              <div className="w-full rounded-2xl border-2 border-sky-500 bg-sky-50/50 p-6 flex flex-col items-center justify-center text-center relative shadow-sm">
+                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 border border-sky-100">
+                   <FileText className="w-6 h-6 text-sky-500" />
+                 </div>
+                 <p className="text-[16px] font-bold text-slate-900 mb-1 w-full max-w-[300px] truncate px-4">
+                   {selectedFile.name}
+                 </p>
+                 <p className="text-[13px] font-medium text-slate-500 mb-5">
+                   {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • Ready to process
+                 </p>
+                 
+                 <button 
+                   onClick={handleChooseFile}
+                   className="text-[13px] font-bold text-sky-600 hover:text-sky-700 bg-white px-4 py-2 rounded-lg shadow-sm border border-sky-100 transition-colors"
+                 >
+                   Choose different file
+                 </button>
+              </div>
+
+              {/* Primary CTA */}
+              <button
+                type="button"
+                className="w-full h-[56px] flex justify-center items-center gap-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-[0.98] text-white font-bold text-[16px] shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.23)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleUpload}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing Profile...
+                  </>
+                ) : (
+                  <>
+                    Build My Profile
+                    <ArrowRight className="w-5 h-5 ml-1" />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Hidden Input field */}
+          <input
+             type="file"
+             ref={fileInputRef}
+             onChange={handleFileSelect}
+             accept=".pdf,.doc,.docx"
+             className="hidden"
+          />
+
+          {/* Supportive Format Text */}
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+             <p className="text-[13px] font-medium text-slate-500">
+               Supported formats: PDF or MS Word (Max 5MB)
+             </p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 flex gap-3 items-start mt-6">
+              <AlertCircle className="w-5 h-5 text-red-500 mt-[-1px] shrink-0" />
+              <p className="text-sm font-semibold text-red-700 leading-snug">{error}</p>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {success && (
+            <div className="rounded-xl border border-green-200 bg-green-50 p-3.5 flex gap-3 items-start mt-6">
+              <Sparkles className="w-5 h-5 text-green-500 mt-[-1px] shrink-0" />
+              <p className="text-sm font-semibold text-green-700 leading-snug">{success}</p>
+            </div>
+          )}
+
+          {/* Progress Bar */}
+          {isUploading && (
+            <div className="mt-6 space-y-2">
+              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                <div 
+                  className="h-full bg-sky-500 rounded-full transition-all duration-300 relative"
+                  style={{ width: `${Math.max(uploadProgress, 5)}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                <span>Uploading Document</span>
+                <span>{Math.round(uploadProgress)}%</span>
+              </div>
+            </div>
+          )}
+          
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 px-6 py-6 mt-8 text-xs text-slate-500">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 md:flex-row">
-          <p>© 2025 SAASA B2E. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-slate-700">
-              Privacy Policy
-            </a>
-            <a href="#" className="hover:text-slate-700">
-              Terms of Service
-            </a>
-            <a href="#" className="hover:text-slate-700">
-              Contact Us
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
-

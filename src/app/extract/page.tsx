@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Sparkles, User, Briefcase, GraduationCap } from "lucide-react";
 
 import { API_BASE_URL } from '@/lib/api-base';
 
@@ -143,125 +144,91 @@ export default function ExtractPage() {
   }, [router, isProcessing]);
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background:
-          "radial-gradient(ellipse 800px 600px at bottom left, #bae6fd 0%, #dbeafe 30%, transparent 70%), radial-gradient(ellipse 800px 600px at 80% 60%, #fed7aa 0%, #fde2e4 30%, transparent 70%), white",
-      }}
-    >
+    <div className="min-h-screen bg-[#FCFDFE] text-slate-900 flex flex-col relative overflow-hidden font-sans">
+      {/* Background Soft AI Glow */}
+      <div className="absolute top-0 right-0 -mr-[10%] -mt-[10%] w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(40,168,225,0.08)_0,rgba(255,255,255,0)_60%)] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 -ml-[10%] -mb-[10%] w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(40,168,225,0.05)_0,rgba(255,255,255,0)_60%)] pointer-events-none" />
+
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2">
+      <header className="flex flex-none items-center justify-between px-6 py-6 relative z-10 mx-auto w-full max-w-[1240px]">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
           <Image
             src="/SAASA%20Logo.png"
             alt="SAASA B2E"
-            width={110}
-            height={32}
+            width={120}
+            height={36}
             className="h-8 w-auto"
           />
         </div>
-        <a href="#" className="text-sm font-semibold text-sky-600 hover:text-sky-700">
-          Help
+        <a href="#" className="text-[13px] font-bold text-sky-600 hover:text-sky-700 transition-colors uppercase tracking-widest">
+          Help 
         </a>
       </header>
 
-      {/* Main content */}
-      <main className="flex min-h-[calc(100vh-160px)] items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl text-center">
-          {/* Loading circle */}
-          <div className="mb-8 flex justify-center">
-            <div
-              className="animate-spin rounded-full border-4 border-t-transparent"
-              style={{
-                width: "80px",
-                height: "80px",
-                borderColor: "#bae6fd",
-                borderTopColor: "#239CD2",
-              }}
-            />
+      {/* Main content centered */}
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full mb-12">
+        
+        {/* The Card Shell */}
+        <div className="w-full max-w-[440px] bg-white rounded-[24px] shadow-[0_20px_40px_rgba(0,0,0,0.06)] border border-slate-100 p-8 sm:p-12 relative overflow-hidden text-center">
+          
+          <div className="w-full flex justify-center mb-8 relative">
+            {!isProcessing ? (
+              <div className="w-20 h-20 bg-emerald-50 rounded-[24px] flex items-center justify-center shadow-sm border border-emerald-100 relative z-10 animate-in zoom-in duration-300">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+              </div>
+            ) : (
+              <div className="relative flex items-center justify-center">
+                {/* Outer pulsing ring */}
+                <div className="absolute inset-0 w-24 h-24 bg-sky-100 rounded-full animate-ping opacity-75 mx-auto" style={{ top: '-8px' }}></div>
+                {/* Inner spinner box */}
+                <div className="w-20 h-20 bg-sky-50 rounded-[24px] flex items-center justify-center shadow-sm border border-sky-100 relative z-10">
+                  <Sparkles className="w-8 h-8 text-sky-500 animate-pulse" />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Main message */}
-          <h1
-            className="mb-4 text-center font-medium text-slate-800"
-            style={{
-              fontFamily: "Poppins, sans-serif",
-              fontSize: "30px",
-              lineHeight: "36px",
-              letterSpacing: "0px",
-            }}
-          >
-            Analyzing your CV using SAASA B2E AI...
-          </h1>
+          <div className="mb-10">
+            <h1 className="text-[26px] font-black text-slate-900 tracking-tight leading-tight transition-all duration-300">
+              {isProcessing ? "Analyzing your profile..." : "Analysis Complete!"}
+            </h1>
+          </div>
 
-          {/* Descriptive text */}
-          <p
-            className="mb-8 text-center font-normal text-slate-600"
-            style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: "17.5px",
-              lineHeight: "28px",
-              letterSpacing: "0px",
-            }}
-          >
-            This usually takes a few seconds. We&apos;re extracting your skills, experience,
-            education, and more.
-          </p>
-
-          {/* Progress bar */}
-          <div className="mb-4">
-            <div
-              className="h-2 rounded-full"
-              style={{
-                backgroundColor: "#e0f2fe",
-                width: "100%",
-                maxWidth: "500px",
-                margin: "0 auto",
-              }}
-            >
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{
-                  backgroundColor: "#239CD2",
-                  width: `${progress}%`,
-                }}
-              />
+          {/* Enhanced Progress Bar */}
+          <div className="mb-8 w-full">
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner flex">
+              <div 
+                className={`h-full rounded-full transition-all duration-500 ease-out relative ${!isProcessing ? 'bg-emerald-500' : 'bg-sky-500'}`}
+                style={{ width: `${progress}%` }}
+              >
+                {isProcessing && (
+                   <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Status message */}
-          <p
-            className="text-center font-medium text-slate-700"
-            style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: "18px",
-              lineHeight: "24px",
-            }}
-          >
-            {status}
-          </p>
+          {/* Dynamic Status Display */}
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center justify-center gap-3">
+            {!isProcessing ? (
+               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            ) : (
+               <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-sky-500 animate-spin"></div>
+            )}
+            <p className="text-[14px] font-semibold text-slate-700">
+              {status}
+            </p>
+          </div>
+
+          {/* Supportive feature icons appearing during extraction */}
+          <div className={`mt-8 flex justify-center gap-6 opacity-40 transition-opacity duration-1000 ${progress > 30 ? 'opacity-100' : ''}`}>
+             <User className={`w-5 h-5 transition-colors duration-500 ${progress > 45 ? 'text-sky-500' : 'text-slate-300'}`} />
+             <Briefcase className={`w-5 h-5 transition-colors duration-500 ${progress > 60 ? 'text-sky-500' : 'text-slate-300'}`} />
+             <GraduationCap className={`w-5 h-5 transition-colors duration-500 ${progress > 75 ? 'text-sky-500' : 'text-slate-300'}`} />
+          </div>
+          
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 px-6 py-4 text-xs text-slate-500">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 md:flex-row">
-          <p>© 2025 SAASA B2E. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-slate-700">
-              Privacy Policy
-            </a>
-            <a href="#" className="hover:text-slate-700">
-              Terms of Service
-            </a>
-            <a href="#" className="hover:text-slate-700">
-              Contact Us
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
-

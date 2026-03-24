@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { ShieldCheck, ArrowRight, AlertCircle, Phone, Mail } from "lucide-react";
 
 import { API_BASE_URL } from '@/lib/api-base';
 
@@ -142,7 +143,13 @@ export default function VerifyOTP() {
 
       // Returning users (number already in DB / onboarded before): go straight to dashboard — no CV step
       const skipCv = data.data.skipCvUpload === true;
-      router.push(skipCv ? "/candidate-dashboard" : "/uploadcv");
+      const postLoginRedirect = sessionStorage.getItem("postLoginRedirect");
+      if (postLoginRedirect) {
+        sessionStorage.removeItem("postLoginRedirect");
+        router.push(postLoginRedirect);
+      } else {
+        router.push(skipCv ? "/candidate-dashboard" : "/uploadcv");
+      }
     } catch (err: any) {
       setError(err.message || "Verification failed. Please try again.");
       console.error("Error verifying OTP:", err);
@@ -159,234 +166,140 @@ export default function VerifyOTP() {
   };
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background:
-          "radial-gradient(ellipse 800px 600px at bottom left, #bae6fd 0%, #dbeafe 30%, transparent 70%), radial-gradient(ellipse 800px 600px at 80% 60%, #fed7aa 0%, #fde2e4 30%, transparent 70%), white",
-      }}
-    >
+    <div className="min-h-screen bg-[#FCFDFE] text-slate-900 flex flex-col relative overflow-hidden font-sans">
+      {/* Background Soft AI Glow */}
+      <div className="absolute top-0 right-0 -mr-[10%] -mt-[10%] w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(40,168,225,0.08)_0,rgba(255,255,255,0)_60%)] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 -ml-[10%] -mb-[10%] w-[800px] h-[800px] bg-[radial-gradient(circle_at_center,rgba(40,168,225,0.05)_0,rgba(255,255,255,0)_60%)] pointer-events-none" />
+
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2">
+      <header className="flex flex-none items-center justify-between px-6 py-6 relative z-10 mx-auto w-full max-w-[1240px]">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
           <Image
             src="/SAASA%20Logo.png"
             alt="SAASA B2E"
-            width={110}
-            height={32}
+            width={120}
+            height={36}
             className="h-8 w-auto"
           />
         </div>
-        <a href="#" className="text-sm font-semibold text-sky-600 hover:text-sky-700">
-          Help
+        <a href="#" className="text-[13px] font-bold text-sky-600 hover:text-sky-700 transition-colors uppercase tracking-widest">
+          Help 
         </a>
       </header>
 
-      {/* Main content */}
-      <main className="flex min-h-[calc(100vh-140px)] items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
-          {/* Verification card */}
-          <div
-            className="border border-teal-200 bg-white p-8 shadow-lg"
-            style={{
-              width: "456px",
-              height: "468px",
-              borderRadius: "3px",
-            }}
-          >
-            <div className="mb-6 text-center">
-              <h1
-                className="font-medium text-slate-900"
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "22.73px",
-                  lineHeight: "30.4px",
-                  letterSpacing: "0%",
-                  marginBottom: "13px",
-                }}
-              >
-                Verify your WhatsApp Number
-              </h1>
-              <p
-                className="font-normal text-slate-600"
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "11.94px",
-                  lineHeight: "17.1px",
-                  letterSpacing: "0px",
-                }}
-              >
-                We have sent a 6-digit verification code to your email address
-                <br />
-                <span style={{ fontSize: "10px", color: "#239CD2" }}>{otpEmail || "your Gmail"}</span>
-              </p>
-            </div>
+      {/* Main content centered */}
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full mb-12">
+        
+        {/* The Card Shell */}
+        <div className="w-full max-w-[440px] bg-white rounded-[24px] shadow-[0_20px_40px_rgba(0,0,0,0.06)] border border-slate-100 p-8 sm:p-10 relative overflow-hidden text-center">
+          
+          <div className="w-16 h-16 bg-sky-50 rounded-[18px] flex items-center justify-center mx-auto mb-6 shadow-sm border border-sky-100">
+            <Mail className="w-7 h-7 text-sky-500" />
+          </div>
 
-            {/* Phone number display */}
-            <div className="text-center" style={{ marginBottom: "30px" }}>
-              <p
-                className="font-normal text-slate-800"
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "12px",
-                  lineHeight: "15.2px",
-                  letterSpacing: "0px",
-                }}
-              >
-                {countryCode && whatsappNumber
+          <div className="mb-8">
+            <h1 className="text-[26px] font-black text-slate-900 tracking-tight leading-tight">
+              Check your email
+            </h1>
+            <p className="mt-2 text-[15px] font-medium text-slate-500 leading-relaxed max-w-[300px] mx-auto">
+              We've sent a 6-digit verification code to <span className="text-slate-900 font-bold">{otpEmail || "your email"}</span>.
+            </p>
+          </div>
+
+          {/* Identity Context */}
+          <div className="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-1.5 mb-8 text-[13px] font-semibold text-slate-600 shadow-sm">
+            <Phone className="w-3.5 h-3.5 text-slate-400" />
+            {countryCode && whatsappNumber
                   ? `${countryCode} ${maskPhoneNumber(whatsappNumber)}`
                   : "+91 •••••• 1234"}
-              </p>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3.5 flex gap-3 items-start mb-6 text-left">
+              <AlertCircle className="w-5 h-5 text-red-500 mt-[-1px] shrink-0" />
+              <p className="text-sm font-semibold text-red-700 leading-snug">{error}</p>
             </div>
+          )}
 
-            {/* Error message */}
-            {error && (
-              <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            {otpPreview && (
-              <div className="mb-4 rounded-md bg-amber-50 border border-amber-200 p-3">
-                <p className="text-xs text-amber-700 font-semibold mb-1">Fallback OTP</p>
-                <p className="text-lg text-amber-900 font-mono font-bold">{otpPreview}</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  Email delivery failed; use this OTP to continue verification.
+          {/* Dev Mode OTP */}
+          {otpPreview && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-6 text-left">
+              <p className="text-[11px] font-black text-amber-700 uppercase tracking-widest mb-2">Development Mode</p>
+              <div className="flex items-center gap-3">
+                <span className="bg-white border border-amber-200 text-amber-800 font-mono font-bold text-lg px-3 py-1.5 rounded-lg shadow-sm">
+                  {otpPreview}
+                </span>
+                <p className="text-[13px] font-medium text-amber-700 leading-snug flex-1">
+                  Email delivery bypassed. Use this fallback code.
                 </p>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* OTP input with floating label */}
-            <div className="relative mb-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  className={`w-full rounded-md border border-slate-200 px-4 pb-2 text-center text-lg tracking-widest text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100 ${
-                    isFocused || otp.length > 0 ? "pt-5" : "pt-3"
-                  }`}
-                  style={{ color: "#000000" }}
-                />
-                <label
-                  className={`pointer-events-none absolute text-slate-500 transition-all duration-200 ${
-                    isFocused || otp.length > 0
-                      ? "left-1/2 -top-2.5 -translate-x-1/2 text-xs font-medium bg-white px-1"
-                      : "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm"
-                  }`}
-                  style={
-                    isFocused || otp.length > 0
-                      ? {
-                          color: "#239CD2",
-                        }
-                      : undefined
-                  }
-                >
-                  Verification Code
-                </label>
-              </div>
+          <div className="space-y-6">
+            
+            {/* OTP Input styled elegantly */}
+            <div className="relative">
+              <input
+                type="text"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className={`w-full h-16 rounded-xl border border-slate-200 bg-slate-50 text-center text-[28px] font-mono tracking-[0.5em] font-bold text-slate-900 shadow-inner focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all outline-none ${otp.length > 0 ? "tracking-[0.5em]" : ""}`}
+                placeholder="••••••"
+              />
             </div>
 
-            {/* Resend code */}
-            <div className="mb-6 text-center">
-              <p
-                className="font-normal text-slate-600"
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "11.94px",
-                  lineHeight: "17.1px",
-                  letterSpacing: "0px",
-                }}
-              >
-                Didn&apos;t receive the code?{" "}
+            <button
+              type="button"
+              className="w-full h-[52px] flex justify-center items-center gap-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-[0.98] text-white font-bold text-[15px] shadow-[0_4px_14px_0_rgba(14,165,233,0.39)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.23)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleVerifyOTP}
+              disabled={isLoading || otp.length !== 6}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Verifying...
+                </>
+              ) : (
+                "Verify & Continue"
+              )}
+            </button>
+            
+          </div>
+
+          <div className="mt-8 flex flex-col items-center gap-3">
+             <div className="text-[13px] font-medium text-slate-500">
+                Didn't receive the code?{" "}
                 {isResendDisabled ? (
-                  <span className="text-slate-500">
-                    Resend code in {formatTime(timer)}
+                  <span className="text-slate-400">
+                    Resend in {formatTime(timer)}
                   </span>
                 ) : (
                   <button
                     onClick={handleResend}
-                    className="text-sky-600 hover:text-sky-700"
+                    className="text-sky-600 hover:text-sky-700 font-bold transition-colors"
                   >
                     Resend code
                   </button>
                 )}
-              </p>
-            </div>
-
-            {/* Verify button */}
-            <button
-              type="button"
-              className="text-sm font-semibold text-white shadow-sm transition block mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleVerifyOTP}
-              disabled={isLoading || otp.length !== 6}
-              style={{
-                width: "332px",
-                height: "31px",
-                borderRadius: "3px",
-                backgroundColor: "#239CD2",
-                marginBottom: "21px",
-              }}
-            >
-              {isLoading ? "Verifying..." : "Verify OTP"}
-            </button>
-
-            {/* Change number link */}
-            <div className="mb-4 text-center">
-              <button
+             </div>
+             <button
                 onClick={() => router.push("/whatsapp")}
-                className="text-sky-600 hover:text-sky-700"
-                style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "11.94px",
-                  lineHeight: "17.1px",
-                  letterSpacing: "0px",
-                }}
-              >
-                Change WhatsApp number
-              </button>
-            </div>
-
-            {/* Explanation text */}
-            <p
-              className="text-center font-normal text-slate-500"
-              style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: "11.94px",
-                lineHeight: "17.1px",
-                letterSpacing: "0px",
-                marginTop: "33px",
-              }}
-            >
-              Check your email ({otpEmail || "your Gmail"}) for the verification code.
-              <br />
-              This verification helps us protect your account and enable job alerts.
-            </p>
+                className="text-[13px] font-bold text-slate-500 hover:text-slate-800 transition-colors"
+             >
+                Change contact details
+             </button>
           </div>
+
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 px-6 py-4 text-xs text-slate-500">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 md:flex-row">
-          <p>© 2025 SAASA B2E. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-slate-700">
-              Privacy Policy
-            </a>
-            <a href="#" className="hover:text-slate-700">
-              Terms of Service
-            </a>
-            <a href="#" className="hover:text-slate-700">
-              Contact Us
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
-

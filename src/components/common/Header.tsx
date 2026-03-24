@@ -43,6 +43,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     const [userName, setUserName] = useState<string>('');
     const [userEmail, setUserEmail] = useState<string>('');
     const [profileCompletion, setProfileCompletion] = useState<number | null>(null);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const navRef = useRef<HTMLElement | null>(null);
@@ -58,7 +59,11 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     useEffect(() => {
         const fetchProfileData = async () => {
             const candidateId = sessionStorage.getItem("candidateId");
-            if (!candidateId) return;
+            if (!candidateId) {
+                setIsLoggedIn(false);
+                return;
+            }
+            setIsLoggedIn(true);
 
             try {
                 const response = await fetchWithRetry(`${API_BASE_URL}/cv/dashboard/${candidateId}`, {
@@ -177,7 +182,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
     const isActive = useCallback(
         (path: string) => {
             if (path === '/candidate-dashboard') {
-                return pathname === path || pathname === '/';
+                return pathname === path;
             }
             if (path === '/applications') {
                 return pathname?.startsWith('/applications') || pathname?.startsWith('/interviews');
@@ -219,13 +224,24 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
         return () => clearTimeout(t);
     }, [showJobSearch]);
 
-    const navItems = [
+    const isLandingPage = pathname === '/';
+    
+    // Core public items
+    const publicNavItems = [
+        { label: 'Explore Jobs', path: '/explore-jobs' },
+        { label: 'Courses', path: '/lms' },
+        { label: 'Services', path: '/services' },
+        { label: 'Career Tools', path: '/aicveditor' },
+    ];
+
+    const navItems = isLandingPage ? publicNavItems : isLoggedIn ? [
         { label: 'Dashboard', path: '/candidate-dashboard' },
         { label: 'Jobs', path: '/explore-jobs' },
         { label: 'Applications', path: '/applications' },
         { label: 'LMS', path: '/lms' },
         { label: 'Profile', path: '/profile' },
-    ];
+        { label: 'Services', path: '/services' },
+    ] : publicNavItems;
 
     const handleTabClick = (path: string) => {
         setShowJobSearch(false);
@@ -520,58 +536,98 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                     </div>
                 )}
 
-                {/* Right side icons - Settings, Notifications, Profile */}
+                {/* Right side icons - Settings, Notifications, Profile / Login */}
                 <div className="flex items-center gap-3">
+                    {isLoggedIn && !isLandingPage ? (
+                        <>
+                            {/* Notifications trigger */}
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsNotificationsModalOpen(!isNotificationsModalOpen);
+                                        setIsProfileModalOpen(false);
+                                    }}
+                                    className="relative p-2 text-slate-600 hover:text-slate-800 transition-colors"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="20"
+                                        height="20"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                    </svg>
+                                </button>
+                            </div>
 
-                    {/* Notifications trigger */}
-                    <div className="relative">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsNotificationsModalOpen(!isNotificationsModalOpen);
-                                setIsProfileModalOpen(false);
-                            }}
-                            className="relative p-2 text-slate-600 hover:text-slate-800 transition-colors"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    {/* Profile trigger (visible only when candidate uploaded a profile photo) */}
-                    {profilePhotoUrl ? (
-                        <div className="relative profile-button">
+                            {/* Profile trigger */}
+                            {profilePhotoUrl ? (
+                                <div className="relative profile-button">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsProfileModalOpen(!isProfileModalOpen);
+                                            setIsNotificationsModalOpen(false);
+                                        }}
+                                        className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300"
+                                    >
+                                        <Image
+                                            src={profilePhotoUrl}
+                                            alt="User avatar"
+                                            width={32}
+                                            height={32}
+                                            className="h-8 w-8 object-cover"
+                                            unoptimized
+                                        />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="relative profile-button">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsProfileModalOpen(!isProfileModalOpen);
+                                            setIsNotificationsModalOpen(false);
+                                        }}
+                                        className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300 flex items-center justify-center text-xs font-semibold text-slate-600"
+                                    >
+                                        {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div className="hidden sm:flex items-center gap-4">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setIsProfileModalOpen(!isProfileModalOpen);
-                                    setIsNotificationsModalOpen(false);
-                                }}
-                                className="profile-button h-8 w-8 cursor-pointer overflow-hidden rounded-full bg-slate-300"
+                                onClick={() => router.push('/employers')}
+                                className="text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors mr-2"
                             >
-                                <Image
-                                    src={profilePhotoUrl}
-                                    alt="User avatar"
-                                    width={32}
-                                    height={32}
-                                    className="h-8 w-8 object-cover"
-                                    unoptimized
-                                />
+                                For Employers
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.push('/whatsapp')}
+                                className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                            >
+                                Log In
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.push('/whatsapp')}
+                                className="rounded-full bg-[#28A8DF] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
+                            >
+                                Sign Up
                             </button>
                         </div>
-                    ) : null}
+                    )}
                 </div>
             </div>
         </header>
