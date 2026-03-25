@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { useInterviewPrep } from './hooks/useInterviewPrep';
 import { InterviewHeader } from './components/InterviewHeader';
 import { TodayFocusCard } from './components/TodayFocusCard';
@@ -12,10 +13,69 @@ import { RevisionTopics } from './components/Revision/RevisionTopics';
 import { QuestionBankGrid } from './components/QuestionBank/QuestionBankGrid';
 import { CompanySearch } from './components/CompanyResearch/CompanySearch';
 import { LMS_PAGE_SUBTITLE } from '@/app/lms/constants';
+import { useLmsOverlay } from '@/app/lms/components/overlays/LmsOverlayProvider';
+import { useLmsToast } from '@/app/lms/components/ux/LmsToastProvider';
+import { useLmsState } from '@/app/lms/state/LmsStateProvider';
 
 export default function InterviewPrepModulePage() {
   const router = useRouter();
-  const { data, onStartMock, onGenerateQuestions, onAddToPlan } = useInterviewPrep();
+  const overlay = useLmsOverlay();
+  const toast = useLmsToast();
+  const { addPlannedItem, setSelectedSkill } = useLmsState();
+  const { data, mockConfig, setMockConfig, generatedSet, setGeneratedSet, onStartMock, onGenerateQuestions, onAddToPlan } =
+    useInterviewPrep();
+
+  const openGeneratedSet = () => {
+    if (!generatedSet) return;
+    overlay.openSheet({
+      title: 'Generated question set',
+      description: 'Your custom practice set is ready.',
+      content: (
+        <div className="space-y-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Type</p>
+          <p className="text-sm font-semibold text-gray-900">{generatedSet.kind}</p>
+          <ul className="mt-2 space-y-2 list-decimal pl-5 text-sm text-gray-700">
+            {generatedSet.questions.map((q) => (
+              <li key={q.id}>{q.prompt}</li>
+            ))}
+          </ul>
+        </div>
+      ),
+      footer: (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            className="flex-1 rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
+            onClick={() => {
+              setGeneratedSet(null);
+              overlay.close();
+              router.push(`/lms/interview-prep/sets/${generatedSet.id}`);
+            }}
+          >
+            Start practice
+          </button>
+          <button
+            type="button"
+            className="flex-1 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 transition-all duration-200 hover:bg-gray-50 hover:shadow-sm"
+            onClick={() => {
+              addPlannedItem({ id: `ip:set:${generatedSet.kind}`, type: 'topic', label: `Practice: ${generatedSet.kind}`, href: `/lms/interview-prep/sets/${generatedSet.id}` });
+              toast.push({ title: 'Added to plan', message: 'Saved this set for later practice.', tone: 'success' });
+              overlay.close();
+            }}
+          >
+            Add to plan
+          </button>
+        </div>
+      ),
+      size: 'lg',
+    });
+  };
+
+  useEffect(() => {
+    if (!generatedSet) return;
+    openGeneratedSet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedSet]);
 
   return (
     <div className="space-y-8 pb-2">
@@ -34,30 +94,95 @@ export default function InterviewPrepModulePage() {
           nextAction: data.nextAction,
           scores: data.scores,
         }}
-        onNextAction={() => router.push('/lms/quizzes')}
+        onNextAction={() => router.push('/lms/interview-prep/mock-session?role=Frontend%20Developer&diff=Intermediate')}
       />
 
       <TodayFocusCard items={data.todayFocus} onStartNow={() => router.push('/lms/quizzes')} />
 
       <AIInsightBar message={data.aiInsight} />
 
-      <QuestionGeneratorGrid items={data.questionGenerator} onGenerate={onGenerateQuestions} />
+      <QuestionGeneratorGrid
+        items={data.questionGenerator}
+        onGenerate={(kind) => {
+          onGenerateQuestions(kind);
+          toast.push({ title: 'Generated set', message: 'Review the questions in the sheet.', tone: 'info' });
+        }}
+      />
 
-      <MockInterviewCard onStartMock={onStartMock} />
+      <MockInterviewCard
+        difficulty={mockConfig.difficulty}
+        role={mockConfig.role}
+        onChangeConfig={(next) => setMockConfig(next)}
+        onStartMock={() => {
+          const cfg = onStartMock();
+          overlay.openSheet({
+            title: 'Start mock interview',
+            description: 'Frontend-only launch flow (mock).',
+            content: (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-gray-900">Config</p>
+                <ul className="text-sm text-gray-700 list-disc pl-5">
+                  <li>Difficulty: {cfg.difficulty}</li>
+                  <li>Role focus: {cfg.role}</li>
+                </ul>
+                <p className="mt-3 text-sm font-normal text-gray-600">
+                  Starting will add a practice item to your Career Path plan (local-only).
+                </p>
+              </div>
+            ),
+            footer: (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
+                  onClick={() => {
+                    overlay.close();
+                    router.push(`/lms/interview-prep/mock-session?role=${encodeURIComponent(cfg.role)}&diff=${encodeURIComponent(cfg.difficulty)}`);
+                  }}
+                >
+                  Start
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-900 transition-all duration-200 hover:bg-gray-50 hover:shadow-sm active:scale-[0.98]"
+                  onClick={overlay.close}
+                >
+                  Cancel
+                </button>
+              </div>
+            ),
+          });
+        }}
+      />
 
       <FeedbackSummary feedback={data.feedback} confidenceScore={data.confidenceScore} />
 
-      <RevisionTopics topics={data.revisionTopics} onAddToPlan={onAddToPlan} />
+      <RevisionTopics
+        topics={data.revisionTopics}
+        onAddToPlan={(topicIds) => {
+          const tArr = onAddToPlan(topicIds);
+          tArr.forEach(t => {
+             addPlannedItem({ id: `ip:rev:${t}-${Date.now()}`, type: 'topic', label: t, href: '/lms/career-path' });
+          });
+          toast.push({ title: 'Added to plan', message: tArr.length > 1 ? `Added ${tArr.length} items` : tArr[0], tone: 'success' });
+        }}
+      />
 
       <QuestionBankGrid
         categories={data.questionBank}
-        onOpenCategory={(title) => console.log('Open question bank', title)}
+        onOpenCategory={(title) => {
+          router.push(`/lms/interview-prep/question-bank/${encodeURIComponent(title)}`);
+        }}
       />
 
       <CompanySearch
         suggested={data.suggestedCompanies}
-        onTag={(c) => console.log('Company tag', c)}
+        onTag={(c) => {
+          setSelectedSkill('behavioral');
+          router.push(`/lms/interview-prep/company/${encodeURIComponent(c.toLowerCase())}`);
+        }}
       />
+
     </div>
   );
 }

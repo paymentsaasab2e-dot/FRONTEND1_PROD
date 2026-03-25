@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useMemo } from 'react';
 import {
   ClipboardList,
   HelpCircle,
@@ -21,6 +24,9 @@ import {
   quizzesLastSessionFeedback,
   quizzesEngagement,
 } from '../data/ai-mock';
+import { lmsQuizBank, lmsQuizIdForSkill } from '../data/ai-mock';
+import { useQuizAnalytics } from './hooks/useQuizAnalytics';
+import { useLmsState } from '../state/LmsStateProvider';
 
 function difficultyBadge(d: 'Easy' | 'Medium' | 'Hard') {
   const map = {
@@ -69,12 +75,16 @@ function QuizCardRow({
   questions,
   difficulty,
   cta,
+  href,
+  bestScore,
 }: {
   title: string;
   topic: string;
   questions: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   cta?: string;
+  href: string;
+  bestScore?: number;
 }) {
   const m = practiceMinutes(difficulty);
   return (
@@ -87,33 +97,74 @@ function QuizCardRow({
           <div>
             <h2 className="text-lg font-bold text-gray-900 leading-snug">{title}</h2>
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{topic}</p>
-            <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm text-gray-500 font-normal">
-              <ClipboardList className="h-4 w-4 text-gray-400" strokeWidth={2} />
-              {questions} questions
-            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 font-normal">
+                <ClipboardList className="h-4 w-4 text-gray-400" strokeWidth={2} />
+                {questions} questions
+              </span>
+              {bestScore !== undefined && (
+                <>
+                  <span className="text-gray-300">·</span>
+                  <span className={`text-sm font-semibold ${bestScore >= 70 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    Best: {bestScore}%
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <div>{difficultyBadge(difficulty)}</div>
-          <button
-            type="button"
-            className="w-full rounded-xl bg-[#28A8E1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] cursor-pointer"
+          <Link
+            href={href}
+            className="w-full inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
           >
             {cta ?? `Start practice (${m} min)`}
-          </button>
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-export default function LmsQuizzesPage() {
+export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
   const recMin = quizzesAIRecommended.estMinutes;
+  const skill =
+    typeof searchParams?.skill === 'string'
+      ? searchParams.skill
+      : Array.isArray(searchParams?.skill)
+        ? searchParams?.skill?.[0]
+        : null;
+
+  const { state } = useLmsState();
+  const analytics = useQuizAnalytics();
+
+  const filteredCatalog = useMemo(() => {
+    if (!skill) return quizzesCatalog;
+    const normalized = skill.toLowerCase();
+    return quizzesCatalog.filter((q) => {
+      const bank = lmsQuizBank[q.id];
+      return bank?.skill === normalized || q.topic.toLowerCase().includes(normalized);
+    });
+  }, [skill]);
+
+  // Derive Recommended logic
+  const recContent = {
+    title: analytics.hasAttempts && analytics.weakestTopic ? `Drill: ${analytics.weakestTopic.toUpperCase()}` : quizzesAIRecommended.title,
+    topic: analytics.hasAttempts && analytics.weakestTopic ? analytics.weakestTopic : quizzesAIRecommended.topic,
+    blurb: analytics.hasAttempts && analytics.weakestTopic ? `Your recent scores around ${analytics.weakestTopic} suggest a review.` : quizzesAIRecommended.blurb,
+    why: analytics.hasAttempts && analytics.weakestTopic ? [`Score is currently ${analytics.lowestScore}%`, `Focusing here will improve overall readiness.`] : quizzesAIRecommended.whyThisQuiz,
+    diff: quizzesAIRecommended.difficulty,
+    questions: quizzesAIRecommended.questions,
+  };
+
+  // Derive retry weaknesses
+  const retryCards = (analytics.hasAttempts && analytics.retryQuizzes.length > 0) ? analytics.retryQuizzes : quizzesRetryWeak;
 
   return (
     <div className="space-y-10">
       <div className="min-w-0">
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1 tracking-tight">Quizzes</h1>
         <p className={LMS_PAGE_SUBTITLE}>
-          Adaptive practice linked to weak topics, notes, and career readiness (mock intelligence layer).
+          Adaptive practice linked to weak topics, notes, and career readiness (live mock layer).
         </p>
       </div>
 
@@ -122,14 +173,14 @@ export default function LmsQuizzesPage() {
           <div className="flex items-center gap-2">
             <Flame className="h-5 w-5 text-orange-500" strokeWidth={2} />
             <p className="text-sm font-bold text-gray-900">
-              {quizzesEngagement.streakDays}-day streak
+              {analytics.attemptCount > 0 ? `${analytics.attemptCount} quiz active streak` : '0-day streak'}
             </p>
             <span className="text-sm font-normal text-gray-500">·</span>
             <p className="text-sm font-semibold text-gray-700">
-              Confidence: {quizzesEngagement.confidenceLabel}
+              Confidence: {analytics.avgScore >= 70 ? 'High' : analytics.avgScore > 0 ? 'Learning' : 'Needs Practice'}
             </p>
           </div>
-          <p className="text-xs font-medium text-gray-500">Streaks & confidence sync from future activity API.</p>
+          <p className="text-xs font-medium text-gray-500">Streaks & confidence derive from local session attempts.</p>
         </div>
       </section>
 
@@ -139,32 +190,32 @@ export default function LmsQuizzesPage() {
           <div className="flex flex-col lg:flex-row gap-5">
             <div className="flex-1 space-y-3">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{quizzesAIRecommended.title}</h2>
+                <h2 className="text-lg font-bold text-gray-900">{recContent.title}</h2>
                 <p className="mt-1 text-xs font-bold uppercase tracking-wide text-gray-400">
-                  {quizzesAIRecommended.topic}
+                  {recContent.topic}
                 </p>
-                <p className="mt-2 text-sm text-gray-500 font-normal">{quizzesAIRecommended.blurb}</p>
+                <p className="mt-2 text-sm text-gray-500 font-normal">{recContent.blurb}</p>
               </div>
               <div>
                 <p className="text-sm font-bold text-gray-900">Why this quiz?</p>
                 <ul className="mt-2 space-y-1.5 list-disc pl-5 text-sm font-normal text-gray-600">
-                  {quizzesAIRecommended.whyThisQuiz.map((line) => (
+                  {recContent.why.map((line) => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
               </div>
               <div className="flex flex-wrap gap-2">
-                {difficultyBadge(quizzesAIRecommended.difficulty)}
+                {difficultyBadge(recContent.diff)}
                 <span className="text-xs font-medium text-gray-500 self-center">
-                  {quizzesAIRecommended.questions} questions
+                  {recContent.questions} questions
                 </span>
               </div>
-              <button
-                type="button"
-                className="w-full sm:w-auto rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] cursor-pointer"
+              <Link
+                href={`/lms/quizzes/${lmsQuizIdForSkill(skill || recContent.topic)}/attempt${skill ? `?skill=${encodeURIComponent(skill)}` : ''}`}
+                className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
               >
                 {`Start practice (${recMin} min)`}
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -178,6 +229,9 @@ export default function LmsQuizzesPage() {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {quizzesSkillHeatmap.map((row) => {
+            const actualPct = analytics.topicAverages[row.slug] !== undefined ? analytics.topicAverages[row.slug] : row.pct;
+            const actualTier = actualPct >= 80 ? 'strong' : actualPct >= 60 ? 'building' : 'risk';
+            
             const title = `${row.topic}: common misses — ${row.hoverMistakes}. Suggestion: ${row.hoverSuggestion}`;
             return (
               <Link
@@ -188,17 +242,17 @@ export default function LmsQuizzesPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-bold text-gray-900 w-32 shrink-0">{row.topic}</span>
-                  <HeatmapBar pct={row.pct} tier={row.tier} />
+                  <HeatmapBar pct={actualPct} tier={actualTier} />
                   <span
                     className={`text-sm font-bold tabular-nums shrink-0 ${
-                      row.tier === 'strong'
+                      actualTier === 'strong'
                         ? 'text-emerald-700'
-                        : row.tier === 'building'
+                        : actualTier === 'building'
                           ? 'text-amber-700'
                           : 'text-rose-700'
                     }`}
                   >
-                    {row.pct}%
+                    {actualPct}%
                   </span>
                 </div>
                 <p className="mt-2 text-xs font-normal text-gray-500 line-clamp-2">{row.hoverSuggestion}</p>
@@ -209,12 +263,12 @@ export default function LmsQuizzesPage() {
       </section>
 
       <section className="space-y-4">
-        <AISectionHeading title="Retry weak topics" />
+        <AISectionHeading title={analytics.hasAttempts && analytics.retryQuizzes.length > 0 ? "Retry weakest topics" : "Retry weak topics (Suggested)"} />
         <p className="text-sm text-gray-500 -mt-2 font-normal">
-          Pulled from your last attempts and notes tagged “Learning” (mock).
+          Pulled from your last attempts & local history.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {quizzesRetryWeak.map((q) => (
+          {retryCards.map((q) => (
             <div key={q.id} className={LMS_CARD_INTERACTIVE}>
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-100">
@@ -225,12 +279,14 @@ export default function LmsQuizzesPage() {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{q.topic}</p>
                   <p className="text-sm text-gray-500">{q.questions} questions</p>
                   {difficultyBadge(q.difficulty)}
-                  <button
-                    type="button"
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-all duration-200 hover:bg-gray-50 hover:shadow-md active:scale-[0.98] cursor-pointer"
+                  <Link
+                    href={`/lms/quizzes/${q.id}/attempt?skill=${encodeURIComponent(
+                      q.topic.toLowerCase().includes('react') ? 'react' : q.topic.toLowerCase().includes('system') ? 'system' : 'javascript'
+                    )}`}
+                    className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-all duration-200 hover:bg-gray-50 hover:shadow-md active:scale-[0.98]"
                   >
                     {`Start practice (${practiceMinutes(q.difficulty)} min)`}
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -238,57 +294,54 @@ export default function LmsQuizzesPage() {
         </div>
       </section>
 
+      {analytics.recentScore !== null && (
       <section className="space-y-4">
         <AISectionHeading title="After your last quiz" />
         <div className={`${LMS_CARD_CLASS} space-y-4 border-emerald-100 bg-emerald-50/20 transition-all duration-200 hover:shadow-md`}>
           <p className="text-sm font-bold text-emerald-800">
-            You improved: +{quizzesLastSessionFeedback.improvementPct}%
+            Recent output score: {analytics.recentScore}%
           </p>
           <div>
-            <p className="text-sm font-bold text-gray-900">Weak areas</p>
-            <ul className="mt-1 list-disc pl-5 text-sm font-normal text-gray-600">
-              {quizzesLastSessionFeedback.weakAreas.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="text-sm font-bold text-gray-900">Next step</p>
+            <p className="text-sm font-bold text-gray-900">Recommended Next Step</p>
             <p className="text-sm font-normal text-gray-600 mt-1">
-              Practice: <span className="font-semibold text-gray-900">{quizzesLastSessionFeedback.nextQuizTitle}</span>
+              Practice: <span className="font-semibold text-gray-900">{analytics.weakestTopic ? `Drill ${analytics.weakestTopic}` : quizzesLastSessionFeedback.nextQuizTitle}</span>
             </p>
-            <button
-              type="button"
-              className="mt-3 rounded-xl bg-[#28A8E1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 cursor-pointer"
+            <Link
+              href={`/lms/quizzes/${lmsQuizIdForSkill(skill || analytics.weakestTopic)}/attempt${skill ? `?skill=${encodeURIComponent(skill)}` : ''}`}
+              className="mt-3 inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
             >
-              {quizzesLastSessionFeedback.nextStepCta}
-            </button>
+              Start target practice
+            </Link>
           </div>
         </div>
       </section>
+      )}
 
       <section className="space-y-4">
         <AISectionHeading title="Mastery by topic" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quizzesMasteryByTopic.map((m) => (
-            <div
-              key={m.topic}
-              className={`${LMS_CARD_CLASS} transition-all duration-200 hover:shadow-md border-violet-50/80`}
-              title={`Hover intelligence: drill ${m.topic} quizzes linked from career path & notes.`}
-            >
-              <div className="flex items-center gap-2 text-gray-900">
-                <TrendingUp className="h-4 w-4 text-[#28A8E1]" strokeWidth={2} />
-                <span className="text-sm font-bold">{m.topic}</span>
+          {quizzesMasteryByTopic.map((m) => {
+            const actualPct = analytics.topicAverages[m.topic.toLowerCase()] !== undefined ? analytics.topicAverages[m.topic.toLowerCase()] : m.pct;
+            return (
+              <div
+                key={m.topic}
+                className={`${LMS_CARD_CLASS} transition-all duration-200 hover:shadow-md border-violet-50/80`}
+                title={`Drill ${m.topic} quizzes linked from career path & notes.`}
+              >
+                <div className="flex items-center gap-2 text-gray-900">
+                  <TrendingUp className="h-4 w-4 text-[#28A8E1]" strokeWidth={2} />
+                  <span className="text-sm font-bold">{m.topic}</span>
+                </div>
+                <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[#28A8E1] transition-[width] duration-700 ease-out"
+                    style={{ width: `${actualPct}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-sm font-bold text-[#28A8E1]">{actualPct}%</p>
               </div>
-              <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[#28A8E1] transition-[width] duration-700 ease-out"
-                  style={{ width: `${m.pct}%` }}
-                />
-              </div>
-              <p className="mt-2 text-sm font-bold text-[#28A8E1]">{m.pct}%</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -302,11 +355,11 @@ export default function LmsQuizzesPage() {
               <Award className="h-6 w-6" strokeWidth={2} />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900">Recent score</p>
-              <p className="text-sm font-normal text-gray-500">{quizzesRecentPerformance.label}</p>
+              <p className="text-sm font-bold text-gray-900">Latest score</p>
+              <p className="text-sm font-normal text-gray-500">{analytics.hasAttempts ? `Averaging ${analytics.avgScore}% globally` : quizzesRecentPerformance.label}</p>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{quizzesRecentPerformance.score}%</p>
+          <p className="text-3xl font-bold text-gray-900">{analytics.recentScoreStr}{analytics.hasAttempts ? '%' : ''}</p>
         </div>
       </section>
 
@@ -314,7 +367,7 @@ export default function LmsQuizzesPage() {
         <AIInsightCard
           icon={Sparkles}
           title="AI study tip"
-          recommendation={quizzesAIExplanation}
+          recommendation={analytics.weakestTopic ? `Since your score is lowest in ${analytics.weakestTopic}, drilling related courses is highly recommended.` : quizzesAIExplanation}
           ctaLabel="View suggested lessons"
           ctaHref="/lms/courses"
         />
@@ -322,14 +375,24 @@ export default function LmsQuizzesPage() {
 
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-gray-900 tracking-tight">All quizzes</h2>
+        {skill ? (
+          <p className="text-sm font-normal text-gray-500 -mt-2">
+            Filtering by skill: <span className="font-semibold text-gray-900">{skill}</span> ·{' '}
+            <Link href="/lms/quizzes" className="text-[#28A8E1] font-semibold hover:underline">
+              Clear
+            </Link>
+          </p>
+        ) : null}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {quizzesCatalog.map((quiz) => (
+          {filteredCatalog.map((quiz) => (
             <QuizCardRow
               key={quiz.id}
               title={quiz.title}
               topic={quiz.topic}
               questions={quiz.questions}
               difficulty={quiz.difficulty}
+              href={`/lms/quizzes/${quiz.id}/attempt${skill ? `?skill=${encodeURIComponent(skill)}` : ''}`}
+              bestScore={state.quizAttempts[quiz.id]?.score}
             />
           ))}
         </div>

@@ -195,6 +195,360 @@ export const lmsCoursesWithAI: Array<{
   },
 ];
 
+export type LmsCourseLesson = {
+  id: string;
+  title: string;
+  estMin: number;
+};
+
+export type LmsCourseModule = {
+  id: string;
+  title: string;
+  lessons: LmsCourseLesson[];
+};
+
+export const lmsCourseContent: Record<string, { modules: LmsCourseModule[] }> = {
+  c1: {
+    modules: [
+      {
+        id: 'm1',
+        title: 'Narratives that pass screens',
+        lessons: [
+          { id: 'l1', title: 'What interviewers listen for', estMin: 8 },
+          { id: 'l2', title: 'Explaining trade-offs clearly', estMin: 12 },
+        ],
+      },
+      {
+        id: 'm2',
+        title: 'React performance in practice',
+        lessons: [
+          { id: 'l3', title: 'Rendering model refresher', estMin: 10 },
+          { id: 'l4', title: 'Memoization & pitfalls', estMin: 14 },
+          { id: 'l5', title: 'Measuring: Web Vitals', estMin: 9 },
+        ],
+      },
+    ],
+  },
+  c2: {
+    modules: [
+      {
+        id: 'm1',
+        title: 'Inclusive UI basics',
+        lessons: [
+          { id: 'l1', title: 'Contrast and semantics', estMin: 9 },
+          { id: 'l2', title: 'Keyboard interactions', estMin: 11 },
+        ],
+      },
+    ],
+  },
+  c3: {
+    modules: [
+      {
+        id: 'm1',
+        title: 'Metrics for product conversations',
+        lessons: [
+          { id: 'l1', title: 'North star metrics', estMin: 10 },
+          { id: 'l2', title: 'Experiments and confidence', estMin: 12 },
+        ],
+      },
+    ],
+  },
+  c4: {
+    modules: [
+      {
+        id: 'm1',
+        title: 'Communication habits',
+        lessons: [
+          { id: 'l1', title: 'Async updates that land', estMin: 7 },
+          { id: 'l2', title: 'Stakeholder framing', estMin: 9 },
+        ],
+      },
+    ],
+  },
+  c5: {
+    modules: [
+      {
+        id: 'm1',
+        title: 'System design warm-up',
+        lessons: [
+          { id: 'l1', title: 'APIs and boundaries', estMin: 12 },
+          { id: 'l2', title: 'Caching vocabulary', estMin: 10 },
+          { id: 'l3', title: 'Scaling trade-offs (lite)', estMin: 14 },
+        ],
+      },
+    ],
+  },
+  c6: {
+    modules: [
+      {
+        id: 'm1',
+        title: 'Career narrative lab',
+        lessons: [
+          { id: 'l1', title: 'Impact bullets that scan', estMin: 10 },
+          { id: 'l2', title: 'STAR without rambling', estMin: 12 },
+        ],
+      },
+    ],
+  },
+};
+
+export type LmsLessonType = 'video' | 'reading' | 'exercise' | 'mock';
+
+export const lmsCourseMeta: Record<
+  string,
+  {
+    category: 'Frontend' | 'Design' | 'Data' | 'Communication' | 'System Design' | 'Career';
+    skills: string[];
+    keywords: string[];
+    outcomes: string[];
+    whyRecommended: string;
+    recommendedNextId: string | null;
+  }
+> = {
+  c1: {
+    category: 'Frontend',
+    skills: ['React', 'Problem Solving', 'Interview Communication'],
+    keywords: ['frontend', 'react', 'interview', 'architecture'],
+    outcomes: [
+      'Explain component decisions clearly in interviews',
+      'Use structured thinking for technical prompts',
+      'Answer frontend architecture follow-ups with confidence',
+    ],
+    whyRecommended: 'You are targeting frontend roles and recent signals showed interview communication gaps.',
+    recommendedNextId: 'c5',
+  },
+  c2: {
+    category: 'Design',
+    skills: ['Accessibility', 'UI Craft', 'Design Systems'],
+    keywords: ['ui', 'accessibility', 'design', 'a11y'],
+    outcomes: [
+      'Ship accessible UI patterns confidently',
+      'Identify and fix contrast and semantics issues',
+      'Discuss design-system trade-offs during interviews',
+    ],
+    whyRecommended: 'Accessibility talking points are currently underrepresented in your prep.',
+    recommendedNextId: 'c1',
+  },
+  c3: {
+    category: 'Data',
+    skills: ['Metrics', 'Experimentation', 'Product Thinking'],
+    keywords: ['metrics', 'data', 'product', 'experiments'],
+    outcomes: [
+      'Choose practical metrics for frontend initiatives',
+      'Communicate product impact with simple data narratives',
+      'Frame A/B test outcomes clearly',
+    ],
+    whyRecommended: 'Recent quiz performance suggests this is the best next area for impact storytelling.',
+    recommendedNextId: 'c4',
+  },
+  c4: {
+    category: 'Communication',
+    skills: ['Stakeholder Communication', 'Async Collaboration'],
+    keywords: ['communication', 'stakeholder', 'updates', 'collaboration'],
+    outcomes: [
+      'Write concise async updates',
+      'Communicate blockers and trade-offs early',
+      'Present technical status to mixed audiences',
+    ],
+    whyRecommended: 'Strong communication improves interview outcomes and cross-team execution quality.',
+    recommendedNextId: 'c6',
+  },
+  c5: {
+    category: 'System Design',
+    skills: ['API Design', 'Caching', 'Scalability Basics'],
+    keywords: ['system design', 'scaling', 'caching', 'apis'],
+    outcomes: [
+      'Handle common system design interview prompts',
+      'Reason about trade-offs in caching and APIs',
+      'Sketch architecture under time pressure',
+    ],
+    whyRecommended: 'System design remains your highest-priority weak area from LMS signals.',
+    recommendedNextId: 'c1',
+  },
+  c6: {
+    category: 'Career',
+    skills: ['Storytelling', 'Resume Narrative', 'Behavioral Interviews'],
+    keywords: ['career', 'narrative', 'behavioral', 'resume'],
+    outcomes: [
+      'Craft a coherent personal narrative for interviews',
+      'Translate work into measurable outcomes',
+      'Improve confidence in behavioral rounds',
+    ],
+    whyRecommended: 'Use this as a refresher before application sprints and mock loops.',
+    recommendedNextId: 'c1',
+  },
+};
+
+export const lmsLessonContent: Record<
+  string,
+  {
+    type: LmsLessonType;
+    intro: string;
+    keyTakeaways: string[];
+    practiceTask: string;
+    resources: string[];
+  }
+> = {
+  'c1:l1': {
+    type: 'video',
+    intro: 'Learn what interviewers evaluate in frontend rounds and how to structure your response quickly.',
+    keyTakeaways: ['Signal clarity before detail', 'State trade-offs explicitly', 'Anchor with concrete outcomes'],
+    practiceTask: 'Record a 90-second answer to “Tell me about your recent frontend project.”',
+    resources: ['Mock rubric: frontend answer quality', 'Prompt bank: architecture follow-ups'],
+  },
+  'c1:l2': {
+    type: 'exercise',
+    intro: 'Practice explaining trade-offs in state management, rendering, and API orchestration.',
+    keyTakeaways: ['Name options', 'Compare trade-offs', 'Pick and defend one path'],
+    practiceTask: 'Write three trade-off comparisons for a dashboard feature architecture.',
+    resources: ['Template: trade-off table', 'Checklist: concise technical explanations'],
+  },
+  'c1:l3': {
+    type: 'reading',
+    intro: 'Revisit the rendering model and identify typical causes of expensive rerenders.',
+    keyTakeaways: ['State boundaries matter', 'Memoization is contextual', 'Measure before optimizing'],
+    practiceTask: 'Annotate one component tree with likely rerender hotspots.',
+    resources: ['Render profiling cheat sheet', 'React performance glossary'],
+  },
+  'c1:l4': {
+    type: 'exercise',
+    intro: 'Apply memoization patterns correctly and avoid stale values/over-memoization.',
+    keyTakeaways: ['Memoize intentionally', 'Watch dependencies', 'Prefer simpler data flow first'],
+    practiceTask: 'Refactor a noisy component with selective memoization and explain why.',
+    resources: ['Hook dependency checklist', 'Common memoization anti-patterns'],
+  },
+  'c1:l5': {
+    type: 'mock',
+    intro: 'Translate performance work into measurable product impact using web vitals framing.',
+    keyTakeaways: ['Use baseline → improvement framing', 'Report user-facing impact', 'Tie metrics to decisions'],
+    practiceTask: 'Draft a mock interview answer using one performance before/after story.',
+    resources: ['Web vitals quick reference', 'Impact-story template'],
+  },
+};
+
+export type LmsQuizQuestion = {
+  id: string;
+  prompt: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  skill: 'javascript' | 'react' | 'system' | 'behavioral' | 'data';
+};
+
+export const lmsQuizBank: Record<string, { title: string; skill: LmsQuizQuestion['skill']; questions: LmsQuizQuestion[] }> =
+  {
+    q1: {
+      title: 'JavaScript essentials',
+      skill: 'javascript',
+      questions: [
+        {
+          id: 'q1-1',
+          prompt: 'What does `let` change compared to `var`?',
+          options: ['Block scoping and TDZ behavior', 'It makes variables immutable', 'It hoists differently (never hoists)', 'It disables closures'],
+          correctIndex: 0,
+          explanation: '`let` is block-scoped and has a temporal dead zone until initialized.',
+          skill: 'javascript',
+        },
+        {
+          id: 'q1-2',
+          prompt: 'Which is true about `===`?',
+          options: ['It performs type coercion', 'It compares without type coercion', 'It always returns true for objects', 'It compares object deep equality'],
+          correctIndex: 1,
+          explanation: '`===` compares values without coercing types.',
+          skill: 'javascript',
+        },
+      ],
+    },
+    q2: {
+      title: 'React & hooks',
+      skill: 'react',
+      questions: [
+        {
+          id: 'q2-1',
+          prompt: 'When does `useEffect` run by default?',
+          options: ['Only on mount', 'After every render', 'Before render', 'Only when state changes'],
+          correctIndex: 1,
+          explanation: 'Without a dependency array, it runs after every render.',
+          skill: 'react',
+        },
+        {
+          id: 'q2-2',
+          prompt: 'What does `key` help React do?',
+          options: ['Prevent re-renders', 'Identify items across renders for reconciliation', 'Make lists sortable', 'Enable SSR'],
+          correctIndex: 1,
+          explanation: 'Keys help React match list items between renders.',
+          skill: 'react',
+        },
+      ],
+    },
+    q3: {
+      title: 'Async & networking',
+      skill: 'javascript',
+      questions: [
+        {
+          id: 'q3-1',
+          prompt: 'Promises are scheduled on…',
+          options: ['Call stack only', 'Microtask queue', 'Macrotask queue only', 'GPU thread'],
+          correctIndex: 1,
+          explanation: 'Promise reactions are queued as microtasks.',
+          skill: 'javascript',
+        },
+      ],
+    },
+    q4: {
+      title: 'Behavioral scenarios',
+      skill: 'behavioral',
+      questions: [
+        {
+          id: 'q4-1',
+          prompt: 'In STAR, what should the “Result” emphasize?',
+          options: ['Only feelings', 'Impact and measurable outcomes when possible', 'Tools used only', 'Team size only'],
+          correctIndex: 1,
+          explanation: 'The result should show impact; numbers help but clarity matters most.',
+          skill: 'behavioral',
+        },
+      ],
+    },
+    q5: {
+      title: 'SQL & data modeling',
+      skill: 'data',
+      questions: [
+        {
+          id: 'q5-1',
+          prompt: 'What does a primary key guarantee?',
+          options: ['Nulls allowed', 'Uniqueness per row', 'Sorted rows', 'Automatic indexing always in every DB'],
+          correctIndex: 1,
+          explanation: 'Primary keys uniquely identify rows (nulls not allowed).',
+          skill: 'data',
+        },
+      ],
+    },
+    q6: {
+      title: 'System design quiz',
+      skill: 'system',
+      questions: [
+        {
+          id: 'q6-1',
+          prompt: 'A CDN primarily helps with…',
+          options: ['Compute scaling only', 'Reducing latency by serving content closer to users', 'Database normalization', 'Encrypting traffic'],
+          correctIndex: 1,
+          explanation: 'CDNs reduce latency and offload origin by caching at edge locations.',
+          skill: 'system',
+        },
+      ],
+    },
+  };
+
+export function lmsQuizIdForSkill(skill: string | null) {
+  if (!skill) return 'q2';
+  if (skill === 'react') return 'q2';
+  if (skill === 'javascript') return 'q1';
+  if (skill === 'system') return 'q6';
+  if (skill === 'behavioral') return 'q4';
+  if (skill === 'data') return 'q5';
+  return 'q2';
+}
+
 export const quizzesAIRecommended = {
   title: 'Full-stack JavaScript deep dive',
   topic: 'JavaScript & async',
@@ -245,6 +599,7 @@ export const eventsRecommendedIntro =
   'Live sessions aligned with your UI Engineer preparation goal (mock recommendations).';
 
 export const eventsWithAI: Array<{
+  id: string;
   title: string;
   date: string;
   mode: 'Online' | 'Offline';
@@ -253,8 +608,13 @@ export const eventsWithAI: Array<{
   whyAttend: string[];
   registeredCount: number;
   startsIn: string;
+  overview: string;
+  speaker: string;
+  status: 'upcoming' | 'past';
+  skill: string;
 }> = [
   {
+    id: 'evt-101',
     title: 'UI portfolio critique live',
     date: 'Thu, Mar 27 · 4:00 PM',
     mode: 'Online',
@@ -263,8 +623,13 @@ export const eventsWithAI: Array<{
     whyAttend: ['Sharpens portfolio round stories', 'Common format in UI interviews'],
     registeredCount: 23,
     startsIn: 'Starts in 2 days',
+    overview: 'Join leading UI designers as they tear down and critique real portfolio submissions live. Excellent preparation for your upcoming portfolio rounds.',
+    speaker: 'Alex Morgan, Lead Designer at Vercel',
+    status: 'upcoming',
+    skill: 'react',
   },
   {
+    id: 'evt-102',
     title: 'Meet the talent team',
     date: 'Sat, Mar 29 · 10:00 AM',
     mode: 'Offline',
@@ -273,8 +638,13 @@ export const eventsWithAI: Array<{
     whyAttend: ['Practice elevator pitch', 'Learn hiring bar signals'],
     registeredCount: 41,
     startsIn: 'Starts in 4 days',
+    overview: 'An exclusive offline mixer where you can speed-network directly with our internal talent acquisition partners and learn inside hiring tips.',
+    speaker: 'Talent Acquisition Team',
+    status: 'upcoming',
+    skill: 'behavioral',
   },
   {
+    id: 'evt-103',
     title: 'Negotiation office hours',
     date: 'Tue, Apr 1 · 7:00 PM',
     mode: 'Online',
@@ -283,8 +653,13 @@ export const eventsWithAI: Array<{
     whyAttend: ['Aligns with salary research notes', 'Q&A on competing offers'],
     registeredCount: 58,
     startsIn: 'Starts in 6 days',
+    overview: 'Drop-in session for answering all your pressing questions about equity, base combinations, and effectively playing competing offers.',
+    speaker: 'Jordan Lee, Compensation Expert',
+    status: 'upcoming',
+    skill: 'salary',
   },
   {
+    id: 'evt-104',
     title: 'Networking breakfast',
     date: 'Fri, Apr 4 · 8:30 AM',
     mode: 'Offline',
@@ -293,8 +668,13 @@ export const eventsWithAI: Array<{
     whyAttend: ['Local hiring intel', 'Warm intros practice'],
     registeredCount: 17,
     startsIn: 'Starts in 9 days',
+    overview: 'Informal breakfast for tech professionals. Build organic relationships in your local tech hub without the pressure of forced networking.',
+    speaker: 'Community Lead',
+    status: 'upcoming',
+    skill: 'behavioral',
   },
   {
+    id: 'evt-105',
     title: 'Tech talk: AI in hiring',
     date: 'Wed, Apr 9 · 6:00 PM',
     mode: 'Online',
@@ -303,8 +683,13 @@ export const eventsWithAI: Array<{
     whyAttend: ['Context on how recruiters screen', 'Low time commitment'],
     registeredCount: 120,
     startsIn: 'Starts in 14 days',
+    overview: 'Webinar diving into how modern Applicant Tracking Systems parse and flag your resume. We will cover keyword optimization strategies.',
+    speaker: 'Samira Dev, ML Engineer',
+    status: 'upcoming',
+    skill: 'resume',
   },
   {
+    id: 'evt-106',
     title: 'Campus hiring prep',
     date: 'Mon, Apr 14 · 3:00 PM',
     mode: 'Offline',
@@ -313,7 +698,26 @@ export const eventsWithAI: Array<{
     whyAttend: ['Resume + OA patterns', 'Group mock practice'],
     registeredCount: 34,
     startsIn: 'Starts in 19 days',
+    overview: 'Intensive half-day session focused exclusively on breaking the entry-level barrier and standing out in campus pipelines.',
+    speaker: 'University Recruiting Team',
+    status: 'upcoming',
+    skill: 'system-design',
   },
+  {
+    id: 'evt-past-1',
+    title: 'System Design Patterns 2026',
+    date: 'Mon, Feb 10 · 2:00 PM',
+    mode: 'Online',
+    type: 'Masterclass',
+    matchLabel: 'Past popular event on System Design',
+    whyAttend: ['High-level architecture review', 'Trends analysis'],
+    registeredCount: 310,
+    startsIn: 'Event finished',
+    overview: 'A deep dive into the latest scalable design patterns used by hyper-growth startups.',
+    speaker: 'Elena Rust, Staff Engineer',
+    status: 'past',
+    skill: 'system-design',
+  }
 ];
 
 export const resumeAIScores = [

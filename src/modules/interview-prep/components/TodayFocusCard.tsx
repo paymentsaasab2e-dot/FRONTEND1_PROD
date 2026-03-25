@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Flame, Check } from 'lucide-react';
 
 type TodayFocusCardProps = {
@@ -11,8 +11,19 @@ type TodayFocusCardProps = {
 export function TodayFocusCard({ items, onStartNow }: TodayFocusCardProps) {
   const [done, setDone] = useState<Record<number, boolean>>({});
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ip:todayfocus');
+      if (stored) setDone(JSON.parse(stored));
+    } catch {}
+  }, []);
+
   const toggle = (i: number) => {
-    setDone((prev) => ({ ...prev, [i]: !prev[i] }));
+    setDone((prev) => {
+      const next = { ...prev, [i]: !prev[i] };
+      try { localStorage.setItem('ip:todayfocus', JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   return (

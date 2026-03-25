@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
-import { Plus, StickyNote, Sparkles, BookOpen, Link2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState, useMemo } from 'react';
+import { Plus, StickyNote, Sparkles, BookOpen, Link2, Search, X } from 'lucide-react';
 import { LMS_CARD_CLASS, LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../constants';
 import { AISectionHeading, AIActionChips, AIInsightCard } from '../components/ai';
 import {
@@ -8,10 +12,10 @@ import {
   notesLearningEngineOutput,
   notesSmartLinkDemo,
   notesEmptyState,
-  notesUserNotes,
   LMS_NOTES_SEED_ENABLED,
   type NoteType,
 } from '../data/ai-mock';
+import { useLmsState } from '../state/LmsStateProvider';
 
 function noteTypeStyle(t: NoteType) {
   const map: Record<NoteType, string> = {
@@ -23,31 +27,71 @@ function noteTypeStyle(t: NoteType) {
   return map[t];
 }
 
+const NOTE_TYPES: NoteType[] = ['Interview Prep', 'Learning Notes', 'Company Research', 'Salary Research'];
+
 export default function LmsNotesPage() {
-  const displayNotes = LMS_NOTES_SEED_ENABLED ? notesUserNotes : [];
-  const hasNotes = displayNotes.length > 0;
+  const router = useRouter();
+  const { state } = useLmsState();
+  const rawNotes = LMS_NOTES_SEED_ENABLED ? state.notes : [];
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'All' | NoteType>('All');
+
+  const displayNotes = useMemo(() => {
+    return rawNotes.filter(note => {
+      const matchesTab = activeTab === 'All' || note.type === activeTab;
+      const lowerQ = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || 
+        note.title.toLowerCase().includes(lowerQ) || 
+        note.body.toLowerCase().includes(lowerQ);
+      return matchesTab && matchesSearch;
+    });
+  }, [rawNotes, searchQuery, activeTab]);
+
+  const hasAnyNotes = rawNotes.length > 0;
+  const isFiltering = searchQuery.length > 0 || activeTab !== 'All';
+
+  const handleAIChipClick = (action: { id: string, label: string }) => {
+     let title = 'AI Generated Draft';
+     let type: NoteType = 'Learning Notes';
+     let body = 'AI draft template initialized...\\n\\n';
+     
+     if (action.id === 'sum') {
+         title = 'Summary of recent topics';
+         body += '- Core concepts extracted from previous 3 modules.\\n- Review required items highlighted.';
+     } else if (action.id === 'flash') {
+         title = 'Flashcard collection';
+         body += 'Q: \\nA: \\n\\nQ: \\nA: ';
+     } else if (action.id === 'quiz') {
+         title = 'Generated mock questions';
+         type = 'Interview Prep';
+         body += 'Question 1: Explain the tradeoff between X and Y?';
+     }
+     
+     router.push(`/lms/notes/new?title=${encodeURIComponent(title)}&type=${encodeURIComponent(type)}&body=${encodeURIComponent(body)}`);
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10">
       <div className="min-w-0 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1 tracking-tight">Notes</h1>
           <p className={LMS_PAGE_SUBTITLE}>
-            Learning engine — notes flow into quizzes, resume coaching, and career path (mock links).
+            Learning engine — notes flow into quizzes, resume coaching, and career path natively.
           </p>
         </div>
-        <button
-          type="button"
+        <Link
+          href="/lms/notes/new"
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer shrink-0"
         >
           <Plus className="h-4 w-4" strokeWidth={2} />
           Create note
-        </button>
+        </Link>
       </div>
 
       <section className="space-y-4 rounded-2xl border border-violet-100 bg-white/70 p-5 sm:p-6 shadow-sm transition-shadow duration-200 hover:shadow-md">
         <AISectionHeading title="AI note actions" />
-        <AIActionChips actions={notesAIChips} />
+        <AIActionChips actions={notesAIChips} onAction={handleAIChipClick} />
         <div className="pt-2">
           <AIInsightCard
             icon={Sparkles}
@@ -60,7 +104,7 @@ export default function LmsNotesPage() {
         </div>
       </section>
 
-      {hasNotes ? (
+      {hasAnyNotes ? (
         <section className="space-y-4">
           <AISectionHeading title="From your notes (mock extraction)" />
           <div className={`${LMS_CARD_CLASS} grid grid-cols-1 md:grid-cols-3 gap-4 border-violet-50 transition-all duration-200 hover:shadow-md`}>
@@ -83,14 +127,16 @@ export default function LmsNotesPage() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-rose-800 mb-1">Weak area flagged</p>
-              <p className="text-sm font-semibold text-gray-900">{notesLearningEngineOutput.weakArea}</p>
+            <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3 flex flex-col justify-between">
+              <div>
+                 <p className="text-xs font-bold uppercase tracking-wide text-rose-800 mb-1">Weak area flagged</p>
+                 <p className="text-sm font-semibold text-gray-900">{notesLearningEngineOutput.weakArea}</p>
+              </div>
               <Link
                 href="/lms/quizzes"
-                className="mt-2 inline-block text-sm font-semibold text-[#28A8E1] hover:underline"
+                className="mt-3 inline-block text-sm font-semibold text-[#28A8E1] hover:underline"
               >
-                Open quizzes →
+                Open generated quizzes →
               </Link>
             </div>
           </div>
@@ -103,7 +149,7 @@ export default function LmsNotesPage() {
           <p className="text-sm font-bold text-gray-900">
             When you write: <span className="text-violet-800">“{notesSmartLinkDemo.trigger}”</span>
           </p>
-          <p className="mt-2 text-sm font-normal text-gray-500">Related (mock):</p>
+          <p className="mt-2 text-sm font-normal text-gray-500">Related hooks trigger organically:</p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {notesSmartLinkDemo.related.map((r) => (
               <li key={r.label}>
@@ -120,25 +166,69 @@ export default function LmsNotesPage() {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <h2 className={LMS_SECTION_TITLE}>Recent</h2>
-        {!hasNotes ? (
+        
+        {hasAnyNotes && (
+           <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <div className="relative flex-1">
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                 <input 
+                    type="text" 
+                    placeholder="Search notes by title or content..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-[#28A8E1] focus:ring-1 focus:ring-[#28A8E1] outline-none"
+                 />
+                 {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                       <X className="h-4 w-4" />
+                    </button>
+                 )}
+              </div>
+              
+              <select 
+                 value={activeTab}
+                 onChange={(e) => setActiveTab(e.target.value as 'All' | NoteType)}
+                 className="w-full sm:w-48 px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-medium focus:border-[#28A8E1] focus:ring-1 focus:ring-[#28A8E1] outline-none bg-white cursor-pointer"
+              >
+                 <option value="All">All Types</option>
+                 {NOTE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+           </div>
+        )}
+
+        {!hasAnyNotes ? (
+           // Global Empty State
           <div className={`${LMS_CARD_CLASS} text-center py-14 px-6 border-dashed border-2 border-gray-200 transition-all duration-200 hover:shadow-md`}>
             <StickyNote className="h-12 w-12 mx-auto text-gray-300 mb-4" strokeWidth={1.5} />
             <h3 className="text-lg font-bold text-gray-900">{notesEmptyState.title}</h3>
             <p className="mt-2 text-sm font-normal text-gray-500 max-w-md mx-auto">{notesEmptyState.body}</p>
-            <button
-              type="button"
+            <Link
+              href="/lms/notes/new"
               className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#28A8E1] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:scale-[1.02] cursor-pointer"
             >
               <Plus className="h-4 w-4" strokeWidth={2} />
               {notesEmptyState.cta}
-            </button>
+            </Link>
           </div>
+        ) : displayNotes.length === 0 ? (
+           // Filter Empty State
+           <div className="text-center py-12 px-6 rounded-xl border border-dashed border-gray-200 bg-gray-50">
+             <Search className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+             <h3 className="text-base font-bold text-gray-900">No matching notes found</h3>
+             <p className="mt-1 text-sm text-gray-500 mb-4">Try adjusting your search query or type filter.</p>
+             <button
+               onClick={() => { setSearchQuery(''); setActiveTab('All'); }}
+               className="text-sm font-semibold text-[#28A8E1] hover:underline"
+             >
+               Clear all filters
+             </button>
+           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {displayNotes.map((note) => (
-              <div key={note.id} className={LMS_CARD_INTERACTIVE}>
+              <Link key={note.id} href={`/lms/notes/${note.id}`} className={LMS_CARD_INTERACTIVE}>
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-50 text-yellow-800 border border-yellow-100">
                     <StickyNote className="h-5 w-5" strokeWidth={2} />
@@ -149,13 +239,13 @@ export default function LmsNotesPage() {
                     >
                       {note.type}
                     </span>
-                    <h2 className="mt-2 text-base font-bold text-gray-900 leading-snug">{note.title}</h2>
+                    <h2 className="mt-2 text-base font-bold text-gray-900 leading-snug truncate">{note.title}</h2>
                     <p className="mt-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
-                      Last updated · {note.updated}
+                      Updated · {note.updated}
                     </p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -5,10 +5,13 @@ import { MockConfigPanel } from './MockConfigPanel';
 import { MockStartButton } from './MockStartButton';
 
 type MockInterviewCardProps = {
+  difficulty: string;
+  role: string;
+  onChangeConfig: (next: { difficulty: string; role: string }) => void;
   onStartMock: () => void;
 };
 
-export function MockInterviewCard({ onStartMock }: MockInterviewCardProps) {
+export function MockInterviewCard({ difficulty, role, onChangeConfig, onStartMock }: MockInterviewCardProps) {
   return (
     <section className="rounded-2xl border border-violet-100 bg-white p-5 sm:p-6 shadow-sm transition-all duration-200 ease-in-out hover:shadow-md space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -24,7 +27,7 @@ export function MockInterviewCard({ onStartMock }: MockInterviewCardProps) {
           </p>
         </div>
       </div>
-      <MockConfigPanel />
+      <MockConfigPanel difficulty={difficulty} role={role} onChange={onChangeConfig} />
       <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 px-4 py-3 text-xs font-medium text-gray-500">
         Voice input: <span className="text-gray-700">placeholder</span> — connect Web Speech / streaming API later.
       </div>

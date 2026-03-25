@@ -1,8 +1,18 @@
-import { Clock, BookOpen, Code2, Palette, LineChart, Sparkles } from 'lucide-react';
+'use client';
+
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Clock, BookOpen, Code2, Palette, LineChart, Sparkles, Search } from 'lucide-react';
 import { LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE } from '../constants';
 import { LmsProgressBar } from '../components/LmsProgressBar';
 import { AISectionHeading } from '../components/ai';
-import { lmsCoursesWithAI, type CourseIconKey } from '../data/ai-mock';
+import { lmsCourseContent, lmsCourseMeta, lmsCoursesWithAI, type CourseIconKey } from '../data/ai-mock';
+import { useLmsState } from '../state/LmsStateProvider';
+import { useLmsToast } from '../components/ux/LmsToastProvider';
+import { LmsStatusBadge } from '../components/ux/LmsStatusBadge';
+import { LmsEmptyState } from '../components/states/LmsEmptyState';
+import { courseStatusFromPct, flattenCourseLessons, normalizePct, parseDurationToMinutes } from './course-utils';
 
 const ICON_MAP: Record<CourseIconKey, typeof Code2> = {
   code2: Code2,
@@ -33,6 +43,59 @@ function levelBadge(level: 'Beginner' | 'Intermediate') {
 }
 
 export default function LmsCoursesPage() {
+  const router = useRouter();
+  const { state, toggleSaveCourse, setLastActiveCourseId } = useLmsState();
+  const toast = useLmsToast();
+  const [query, setQuery] = useState('');
+  const [level, setLevel] = useState<'all' | 'Beginner' | 'Intermediate'>('all');
+  const [status, setStatus] = useState<'all' | 'in_progress' | 'completed' | 'saved'>('all');
+  const [category, setCategory] = useState<'all' | string>('all');
+  const [durationBand, setDurationBand] = useState<'all' | 'short' | 'medium' | 'long'>('all');
+  const [sortBy, setSortBy] = useState<'recommended' | 'progress' | 'duration' | 'alphabetical'>('recommended');
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    lmsCoursesWithAI.forEach((c) => set.add(lmsCourseMeta[c.id]?.category ?? 'General'));
+    return ['all', ...Array.from(set)];
+  }, []);
+
+  const courses = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const base = lmsCoursesWithAI.filter((course) => {
+      const pct = normalizePct(state.courseProgress[course.id] ?? course.progress);
+      const st = courseStatusFromPct(pct);
+      const saved = state.savedCourseIds.includes(course.id);
+      const mins = parseDurationToMinutes(course.duration);
+      const meta = lmsCourseMeta[course.id];
+      const keywords = [course.title, course.description, course.aiContext, ...(meta?.keywords ?? []), ...(meta?.skills ?? [])]
+        .join(' ')
+        .toLowerCase();
+
+      if (q && !keywords.includes(q)) return false;
+      if (level !== 'all' && course.level !== level) return false;
+      if (status === 'saved' && !saved) return false;
+      if (status === 'in_progress' && st !== 'in_progress') return false;
+      if (status === 'completed' && st !== 'completed') return false;
+      if (category !== 'all' && (meta?.category ?? 'General') !== category) return false;
+      if (durationBand === 'short' && mins >= 180) return false;
+      if (durationBand === 'medium' && (mins < 180 || mins > 300)) return false;
+      if (durationBand === 'long' && mins <= 300) return false;
+      return true;
+    });
+
+    const sorted = [...base];
+    if (sortBy === 'alphabetical') sorted.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sortBy === 'duration') sorted.sort((a, b) => parseDurationToMinutes(a.duration) - parseDurationToMinutes(b.duration));
+    else if (sortBy === 'progress') {
+      sorted.sort(
+        (a, b) =>
+          normalizePct(state.courseProgress[b.id] ?? b.progress) - normalizePct(state.courseProgress[a.id] ?? a.progress)
+      );
+    }
+    // recommended = original order
+    return sorted;
+  }, [query, level, status, category, durationBand, sortBy, state.courseProgress, state.savedCourseIds]);
+
   return (
     <div className="space-y-8">
       <div className="min-w-0">
@@ -47,18 +110,152 @@ export default function LmsCoursesPage() {
         </p>
       </div>
 
+      <section className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+          <label className="lg:col-span-4 block">
+            <span className="sr-only">Search courses</span>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" strokeWidth={2} />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by title, skill, or keyword"
+                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+          </label>
+          <select
+            value={level}
+            onChange={(e) => setLevel(e.target.value as typeof level)}
+            className="lg:col-span-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          >
+            <option value="all">All levels</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+          </select>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as typeof status)}
+            className="lg:col-span-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          >
+            <option value="all">All status</option>
+            <option value="in_progress">In progress</option>
+            <option value="completed">Completed</option>
+            <option value="saved">Saved</option>
+          </select>
+          <select
+            value={durationBand}
+            onChange={(e) => setDurationBand(e.target.value as typeof durationBand)}
+            className="lg:col-span-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          >
+            <option value="all">Any duration</option>
+            <option value="short">Short (&lt;3h)</option>
+            <option value="medium">Medium (3-5h)</option>
+            <option value="long">Long (&gt;5h)</option>
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="lg:col-span-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          >
+            <option value="recommended">Sort: Recommended</option>
+            <option value="progress">Sort: Progress</option>
+            <option value="duration">Sort: Duration</option>
+            <option value="alphabetical">Sort: Alphabetical</option>
+          </select>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategory(cat)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+                category === cat
+                  ? 'border-[#28A8E1]/40 bg-[#28A8E1]/10 text-gray-900'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {cat === 'all' ? 'All categories' : cat}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {courses.length === 0 ? (
+        <LmsEmptyState
+          title="No courses match your filters"
+          body="Try clearing filters or using fewer keywords."
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('');
+                setLevel('all');
+                setStatus('all');
+                setCategory('all');
+                setDurationBand('all');
+                setSortBy('recommended');
+              }}
+              className="inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
+            >
+              Reset filters
+            </button>
+          }
+        />
+      ) : null}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {lmsCoursesWithAI.map((course) => {
+        {courses.map((course) => {
           const Icon = ICON_MAP[course.iconKey];
+          const saved = state.savedCourseIds.includes(course.id);
+          const pct = state.courseProgress[course.id] ?? course.progress ?? 0;
+          const meta = lmsCourseMeta[course.id];
+          const lessons = flattenCourseLessons(lmsCourseContent[course.id]?.modules ?? []);
+          const currentLesson = lessons[Math.min(lessons.length - 1, Math.max(0, state.courseLessonIndex[course.id] ?? 0))];
+          const courseHref =
+            pct >= 100
+              ? `/lms/courses/${course.id}?mode=review`
+              : lessons.length > 0
+                ? `/lms/courses/${course.id}/lessons/${lessons[Math.min(lessons.length - 1, Math.max(0, state.courseLessonIndex[course.id] ?? 0))].lessonId}`
+                : `/lms/courses/${course.id}`;
           return (
-            <div key={course.id} className={LMS_CARD_INTERACTIVE}>
+            <div
+              key={course.id}
+              className={LMS_CARD_INTERACTIVE}
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest('a,button')) return;
+                setLastActiveCourseId(course.id);
+                router.push(`/lms/courses/${course.id}`);
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setLastActiveCourseId(course.id);
+                  router.push(`/lms/courses/${course.id}`);
+                }
+              }}
+            >
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#28A8E1] border border-blue-100">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </div>
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900 leading-snug">{course.title}</h2>
+                    <div className="flex items-start justify-between gap-2">
+                      <Link
+                        href={`/lms/courses/${course.id}`}
+                        onClick={() => setLastActiveCourseId(course.id)}
+                        className="text-lg font-bold text-gray-900 leading-snug hover:underline"
+                      >
+                        {course.title}
+                      </Link>
+                      {saved ? <LmsStatusBadge label="Saved" tone="info" /> : null}
+                    </div>
                     <p className="mt-1.5 text-sm text-gray-500 font-normal leading-relaxed">{course.description}</p>
                   </div>
 
@@ -73,27 +270,45 @@ export default function LmsCoursesPage() {
                       <Clock className="h-3.5 w-3.5" strokeWidth={2} />
                       {course.duration}
                     </span>
+                    {meta?.category ? (
+                      <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">
+                        {meta.category}
+                      </span>
+                    ) : null}
                   </div>
 
-                  {course.progress != null && course.progress > 0 && course.progress < 100 ? (
-                    <LmsProgressBar value={course.progress} />
+                  {pct > 0 && pct < 100 ? (
+                    <LmsProgressBar value={pct} />
                   ) : null}
-                  {course.progress === 100 ? (
+                  {pct >= 100 ? (
                     <p className="text-xs font-semibold text-emerald-700">Completed — revisit anytime</p>
                   ) : null}
 
+                  {pct > 0 && pct < 100 && currentLesson ? (
+                    <p className="text-xs font-medium text-gray-500">Resume: {currentLesson.lessonTitle}</p>
+                  ) : null}
+
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <button
-                      type="button"
-                      className="flex-1 min-w-[6rem] rounded-xl bg-[#28A8E1] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] cursor-pointer"
+                    <Link
+                      href={courseHref}
+                      onClick={() => setLastActiveCourseId(course.id)}
+                      className="flex-1 min-w-[6rem] rounded-xl bg-[#28A8E1] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] text-center"
                     >
-                      {courseCtaLabel(course.progress)}
-                    </button>
+                      {courseCtaLabel(pct)}
+                    </Link>
                     <button
                       type="button"
+                      onClick={() => {
+                        toggleSaveCourse(course.id);
+                        toast.push({
+                          title: saved ? 'Removed from saved' : 'Saved course',
+                          message: course.title,
+                          tone: 'info',
+                        });
+                      }}
                       className="flex-1 min-w-[6rem] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition-all duration-200 hover:bg-gray-50 hover:shadow-sm active:scale-[0.98] cursor-pointer"
                     >
-                      Save
+                      {saved ? 'Unsave' : 'Save'}
                     </button>
                   </div>
                 </div>

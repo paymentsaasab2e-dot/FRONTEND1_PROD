@@ -1,3 +1,6 @@
+/* eslint-disable react/no-unescaped-entities */
+'use client';
+
 import { FileText, LayoutTemplate, Sparkles, Briefcase, Bot, Eye, X, Check, AlertTriangle } from 'lucide-react';
 import { LMS_CARD_CLASS, LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../constants';
 import { AISectionHeading, AIScoreCard, AIActionChips } from '../components/ai';
@@ -11,6 +14,10 @@ import {
   resumeAtsRisks,
   lmsSharedIntelligence,
 } from '../data/ai-mock';
+import Link from 'next/link';
+import { useLmsToast } from '../components/ux/LmsToastProvider';
+import { useLmsState } from '../state/LmsStateProvider';
+import { useRouter } from 'next/navigation';
 
 const TEMPLATES = [
   { name: 'Modern minimal', hint: 'Clean sections, strong hierarchy', icon: LayoutTemplate },
@@ -19,6 +26,10 @@ const TEMPLATES = [
 ];
 
 export default function LmsResumeBuilderPage() {
+  const router = useRouter();
+  const toast = useLmsToast();
+  const { state, setResumeTemplate } = useLmsState();
+  const hasDraft = state.resumeDraft.updatedAtLabel !== 'Not saved yet';
   return (
     <div className="space-y-8">
       <div className="min-w-0 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -28,13 +39,13 @@ export default function LmsResumeBuilderPage() {
             Conversion-focused flow — recruiter scan, job match, and ATS risk before you apply (mock).
           </p>
         </div>
-        <button
-          type="button"
+        <Link
+          href="/lms/resume-builder/editor"
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#28A8E1] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer shrink-0"
         >
           <FileText className="h-4 w-4" strokeWidth={2} />
-          Create resume
-        </button>
+          {hasDraft ? 'Continue editing' : 'Create resume'}
+        </Link>
       </div>
 
       <p className="text-xs font-medium text-gray-500 border-l-2 border-violet-200 pl-3 -mt-2">
@@ -67,7 +78,16 @@ export default function LmsResumeBuilderPage() {
 
         <div className="space-y-2">
           <p className="text-sm font-bold text-gray-900">Quick AI actions</p>
-          <AIActionChips actions={resumeAIChips} />
+          <AIActionChips
+            actions={resumeAIChips}
+            onAction={(a) => {
+              if (a.id === 'summary') return router.push('/lms/resume-builder/editor?focus=summary');
+              if (a.id === 'bullets') return router.push('/lms/resume-builder/editor?focus=experience');
+              if (a.id === 'kw') return router.push('/lms/resume-builder/editor?focus=skills');
+              if (a.id === 'tailor') return router.push('/lms/resume-builder/editor?focus=summary');
+              toast.push({ title: 'AI action (mock)', message: a.label, tone: 'info' });
+            }}
+          />
         </div>
       </section>
 
@@ -197,6 +217,12 @@ export default function LmsResumeBuilderPage() {
                   <button
                     type="button"
                     className="w-full rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-semibold text-gray-900 transition-all duration-200 hover:bg-gray-50 hover:shadow-sm active:scale-[0.98] cursor-pointer"
+                    onClick={() => {
+                      const slug = t.name === 'Modern minimal' ? 'modern-minimal' : t.name === 'Impact focused' ? 'impact-focused' : 'technical-depth';
+                      setResumeTemplate(slug);
+                      toast.push({ title: 'Template selected', message: t.name, tone: 'info' });
+                      router.push(`/lms/resume-builder/editor?template=${encodeURIComponent(slug)}`);
+                    }}
                   >
                     Use template
                   </button>

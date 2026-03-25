@@ -13,6 +13,7 @@ export type AIInsightCardProps = {
   ctaLabel: string;
   /** When set, CTA renders as navigation (valid nested markup). */
   ctaHref?: string;
+  onCta?: () => void;
   className?: string;
 };
 
@@ -23,8 +24,11 @@ export function AIInsightCard({
   scoreOrTag,
   ctaLabel,
   ctaHref,
+  onCta,
   className = '',
 }: AIInsightCardProps) {
+  const isButtonCta = !ctaHref;
+  const isDisabled = isButtonCta && !onCta;
   return (
     <div
       className={`${LMS_CARD_INTERACTIVE} border-violet-100 bg-gradient-to-br from-white to-violet-50/40 ${className}`}
@@ -48,7 +52,13 @@ export function AIInsightCard({
               {ctaLabel}
             </Link>
           ) : (
-            <button type="button" className={ctaClassName}>
+            <button
+              type="button"
+              onClick={onCta}
+              disabled={isDisabled}
+              aria-disabled={isDisabled}
+              className={`${ctaClassName} ${isDisabled ? 'opacity-60 cursor-not-allowed shadow-none' : ''}`}
+            >
               {ctaLabel}
             </button>
           )}

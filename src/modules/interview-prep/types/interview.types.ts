@@ -59,3 +59,40 @@ export type MockInterviewSessionMeta = {
   role: string;
   voiceEnabled: boolean;
 };
+
+export type MockQuestion = {
+  id: string;
+  category: string;
+  prompt: string;
+  hint: string;
+  followUp: string[];
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  rubric: string;
+};
+
+export type QuestionSet = {
+  id: string;
+  kind: string;
+  questions: MockQuestion[];
+  createdAt: number;
+};
+
+export type CompanyInfo = {
+  slug: string;
+  name: string;
+  overview: string;
+  culture: string[];
+  productTopics: string[];
+  sampleQuestions: MockQuestion[];
+  revisionTips: string[];
+};
+
+export type MockSessionResult = {
+  id: string;
+  config: { difficulty: string; role: string };
+  answers: Record<string, string>;
+  createdAt: number;
+  strengths: string[];
+  improvements: string[];
+  gaps: string[];
+};
