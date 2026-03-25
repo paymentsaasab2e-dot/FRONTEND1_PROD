@@ -60,10 +60,10 @@ export default function LmsLayout({ children }: { children: ReactNode }) {
                   className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors duration-200 ${
                     active
                       ? 'bg-[#28A8E1] text-white shadow-sm'
-                      : 'bg-gray-50 text-slate-600 border border-gray-100 hover:bg-gray-100'
+                      : 'bg-white text-black border border-gray-100 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} />
+                  <Icon className={`h-4 w-4 shrink-0 ${active ? 'opacity-90' : 'text-black opacity-100'}`} strokeWidth={2} />
                   {label}
                 </Link>
               );
@@ -86,23 +86,32 @@ export default function LmsLayout({ children }: { children: ReactNode }) {
                   className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 ${
                     active
                       ? 'bg-[#28A8E1] text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-gray-50'
+                      : 'text-black hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} />
-                  <span className="truncate">{label}</span>
+                  <Icon className={`h-4 w-4 shrink-0 ${active ? 'opacity-90' : 'text-black opacity-100'}`} strokeWidth={2} />
+                  <span className={`truncate ${active ? '' : 'text-black'}`}>{label}</span>
                 </Link>
               );
             })}
           </nav>
         </aside>
 
-        <main className="flex-1 min-w-0 flex flex-col">
-          <div className={LMS_CONTENT_CLASS}>
+        <main className="flex-1 min-w-0 h-[calc(100vh-64px)] overflow-hidden">
+          <div className={`${LMS_CONTENT_CLASS} h-full flex flex-col`}>
             <LmsCareerEngineStrip />
-            <LmsDailyMomentum />
-            <LmsSharedIntelligenceHint />
-            {children}
+            
+            <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0 overflow-hidden">
+              {/* Left Column (Main Content - Now Scrollable internally) */}
+              <div className="flex-1 min-w-0 overflow-y-auto pr-2 custom-scrollbar space-y-8 pb-10">
+                {children}
+              </div>
+
+              {/* Right Sidebar (Focus/Momentum - Fixed/Sticky on desktop) */}
+              <aside className="w-full lg:w-64 shrink-0 space-y-6 hidden lg:block sticky top-0">
+                <LmsDailyMomentum />
+              </aside>
+            </div>
           </div>
         </main>
       </div>

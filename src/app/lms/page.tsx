@@ -218,16 +218,16 @@ export default function LmsDashboardPage() {
           </Link>
           <Link
             href="/lms/interview-prep"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-5 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
           >
-            <Mic2 className="h-4 w-4 shrink-0" strokeWidth={2} />
+            <Mic2 className="h-4 w-4 shrink-0 text-slate-500" strokeWidth={2} />
             Start interview prep
           </Link>
           <Link
             href="/lms/resume-builder"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-5 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
           >
-            <FileText className="h-4 w-4 shrink-0" strokeWidth={2} />
+            <FileText className="h-4 w-4 shrink-0 text-slate-500" strokeWidth={2} />
             Open resume builder
           </Link>
         </div>

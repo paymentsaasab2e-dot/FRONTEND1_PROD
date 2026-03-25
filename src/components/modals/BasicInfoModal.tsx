@@ -273,12 +273,11 @@ export default function BasicInfoModal({
                       </div>
                       <input
                         ref={dateInputRef}
-                        type="text"
+                        type="date"
                         value={dobValue}
                         onChange={(e) => setDobValue(e.target.value)}
                         onClick={() => dateInputRef.current?.showPicker()}
-                        className="h-11 w-full rounded-lg border border-gray-200 px-3 pl-10 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
-                        placeholder="Select date of birth"
+                        className="h-11 w-full rounded-lg border border-gray-200 px-3 pl-10 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
                       />
                     </div>
                   </div>

@@ -14,6 +14,7 @@ export interface ResumeData {
   file?: File | string;
   fileName?: string;
   uploadedDate?: string;
+  fileUrl?: string;
 }
 
 const formatDateForDisplay = (dateString: string): string => {
@@ -37,10 +38,11 @@ export default function ResumeModal({
 }: ResumeModalProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [uploadedResume, setUploadedResume] = useState<{ name: string; date: string; size?: number } | null>(
+  const [uploadedResume, setUploadedResume] = useState<{ name: string; date: string; size?: number; url?: string } | null>(
     initialData?.fileName ? {
       name: initialData.fileName,
       date: initialData.uploadedDate || new Date().toISOString(),
+      url: initialData.fileUrl,
     } : null
   );
   const [isDragging, setIsDragging] = useState(false);
@@ -54,6 +56,7 @@ export default function ResumeModal({
         setUploadedResume({
           name: initialData.fileName,
           date: initialData.uploadedDate || new Date().toISOString(),
+          url: initialData.fileUrl,
         });
       }
       if (initialData.file instanceof File) {
@@ -84,10 +87,13 @@ export default function ResumeModal({
       alert('File size must be less than 5MB');
       return;
     }
-    // Check file type
+    // Check file type by extension and mime type
     const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!validTypes.includes(file.type)) {
-      alert('Please upload a PDF, DOC, or DOCX file');
+    const validExtensions = ['.pdf', '.doc', '.docx'];
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
+      alert(`Please upload a PDF, DOC, or DOCX file. File type not supported: ${fileExtension || file.type || 'Unknown'}`);
       return;
     }
 
@@ -123,9 +129,10 @@ export default function ResumeModal({
     if (resumeFile) {
       const url = URL.createObjectURL(resumeFile);
       window.open(url, '_blank');
+    } else if (uploadedResume?.url) {
+      window.open(uploadedResume.url, '_blank');
     } else if (uploadedResume) {
-      // If it's a stored file, you would open it from the server
-      alert('Preview functionality for stored files would open the file from server');
+      alert('Preview not available since the file URL was not provided.');
     }
   };
 
@@ -163,14 +170,23 @@ export default function ResumeModal({
     }
   };
 
-  const handleSave = () => {
-    onSave({
-      file: resumeFile || undefined,
-      fileName: uploadedResume?.name,
-      uploadedDate: uploadedResume?.date,
-    });
-    setIsAnalyzing(false);
-    onClose();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave({
+        file: resumeFile || undefined,
+        fileName: uploadedResume?.name,
+        uploadedDate: uploadedResume?.date,
+      });
+      setIsAnalyzing(false);
+      onClose();
+    } catch (error) {
+      console.error('Save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -185,15 +201,24 @@ export default function ResumeModal({
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="h-10 rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            disabled={isSaving}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="h-10 rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-all hover:scale-[1.02] hover:bg-orange-600"
+            disabled={isSaving || (!resumeFile && !uploadedResume)}
+            className="h-10 flex min-w-[120px] items-center justify-center rounded-lg bg-orange-500 px-5 text-sm font-semibold text-white transition-all hover:bg-orange-600 disabled:opacity-75 disabled:cursor-not-allowed"
           >
-            Save Resume
+            {isSaving ? (
+              <svg className="h-5 w-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              'Save Resume'
+            )}
           </button>
         </div>
       )}
@@ -205,7 +230,7 @@ export default function ResumeModal({
                 onDragLeave={handleDragLeave}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                onClick={() => !uploadedResume && fileInputRef.current?.click()}
+                onClick={() => fileInputRef.current?.click()}
                 className={`cursor-pointer rounded-xl border-2 border-dashed text-center transition-all duration-200 ease-in-out ${
                   isDragging
                     ? 'scale-[1.01] border-blue-500 bg-blue-100 shadow-sm'

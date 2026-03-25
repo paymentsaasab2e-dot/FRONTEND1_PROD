@@ -129,9 +129,13 @@ export default function VerifyOTP() {
         throw new Error(data.message || "Invalid OTP. Please try again.");
       }
 
-      // Store candidate ID in sessionStorage for future use
+      // Store candidate ID and token in sessionStorage for future use
       if (data.data.candidateId) {
         sessionStorage.setItem("candidateId", data.data.candidateId);
+      }
+      if (data.data.token) {
+        sessionStorage.setItem("token", data.data.token);
+        localStorage.setItem("token", data.data.token); // Store in localStorage too if needed globally
       }
 
       // Clear OTP-related session data
