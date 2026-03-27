@@ -435,7 +435,37 @@ export type LmsQuizQuestion = {
   skill: 'javascript' | 'react' | 'system' | 'behavioral' | 'data';
 };
 
-export const lmsQuizBank: Record<string, { title: string; skill: LmsQuizQuestion['skill']; questions: LmsQuizQuestion[] }> =
+export type LmsQuizSkill = LmsQuizQuestion['skill'];
+export type LmsQuizDifficulty = 'Easy' | 'Medium' | 'Hard';
+
+export type LmsQuizCatalogItem = {
+  id: string;
+  title: string;
+  questions: number;
+  difficulty: LmsQuizDifficulty;
+  topic: string;
+  description: string;
+  estMinutes: number;
+  whyRecommended: string;
+  weakConcepts: string[];
+  recommendedCourseId: string | null;
+  courseFocus: string;
+  relatedQuizIds: string[];
+};
+
+export type LmsQuizSkillMeta = {
+  label: string;
+  summary: string;
+  weakConcepts: string[];
+  defaultQuizId: string;
+  recommendedCourseId: string | null;
+  courseFocus: string;
+  retryLabel: string;
+  emptyMessage: string;
+  suggestedLessonsLabel: string;
+};
+
+export const lmsQuizBank: Record<string, { title: string; skill: LmsQuizSkill; questions: LmsQuizQuestion[] }> =
   {
     q1: {
       title: 'JavaScript essentials',
@@ -539,17 +569,87 @@ export const lmsQuizBank: Record<string, { title: string; skill: LmsQuizQuestion
     },
   };
 
+export const lmsQuizSkillMeta: Record<LmsQuizSkill, LmsQuizSkillMeta> = {
+  javascript: {
+    label: 'JavaScript',
+    summary: 'Tighten scope, async flow, and debugging fundamentals before your next frontend screen.',
+    weakConcepts: ['Scope and closures', 'Promise timing and microtasks', 'Async error handling'],
+    defaultQuizId: 'q1',
+    recommendedCourseId: 'c1',
+    courseFocus: 'frontend',
+    retryLabel: 'Based on recent JavaScript misses',
+    emptyMessage: 'Complete a JavaScript quiz to unlock targeted retry guidance.',
+    suggestedLessonsLabel: 'Frontend interview readiness',
+  },
+  react: {
+    label: 'React',
+    summary: 'Keep sharpening hooks, rendering behavior, and component reasoning.',
+    weakConcepts: ['Effect dependencies', 'Reconciliation and keys', 'State update timing'],
+    defaultQuizId: 'q2',
+    recommendedCourseId: 'c1',
+    courseFocus: 'react',
+    retryLabel: 'Retry recommended from your React attempts',
+    emptyMessage: 'Take a React quiz first and we will surface a more precise drill here.',
+    suggestedLessonsLabel: 'Frontend interview readiness',
+  },
+  system: {
+    label: 'System design',
+    summary: 'Focus on caching, APIs, and scaling trade-offs before architecture rounds.',
+    weakConcepts: ['Caching layers', 'CDN and latency trade-offs', 'Service boundaries'],
+    defaultQuizId: 'q6',
+    recommendedCourseId: 'c5',
+    courseFocus: 'system design',
+    retryLabel: 'Missed concepts from recent system design practice',
+    emptyMessage: 'No system design retry is available until you finish a scored quiz.',
+    suggestedLessonsLabel: 'System design warm-up',
+  },
+  behavioral: {
+    label: 'Behavioral',
+    summary: 'Practice clearer STAR outcomes and stronger stakeholder storytelling.',
+    weakConcepts: ['STAR result framing', 'Conflict follow-ups', 'Ownership storytelling'],
+    defaultQuizId: 'q4',
+    recommendedCourseId: 'c6',
+    courseFocus: 'career narrative',
+    retryLabel: 'Refresh the stories that felt weakest last time',
+    emptyMessage: 'Finish a behavioral set and we will tailor the follow-up drill.',
+    suggestedLessonsLabel: 'Career narrative lab',
+  },
+  data: {
+    label: 'Data',
+    summary: 'Review SQL basics and modeling language for data-fluent product conversations.',
+    weakConcepts: ['Primary keys and constraints', 'Normalization basics', 'Metrics trade-offs'],
+    defaultQuizId: 'q5',
+    recommendedCourseId: 'c3',
+    courseFocus: 'metrics',
+    retryLabel: 'Retry based on data-modeling misses',
+    emptyMessage: 'Complete a data quiz to unlock a smarter retry recommendation.',
+    suggestedLessonsLabel: 'Data literacy for product roles',
+  },
+};
+
+export function lmsNormalizeQuizSkill(skill: string | null | undefined): LmsQuizSkill | null {
+  if (!skill) return null;
+  const normalized = skill.trim().toLowerCase();
+  if (normalized === 'javascript' || normalized === 'js' || normalized === 'async') return 'javascript';
+  if (normalized === 'react' || normalized === 'hooks') return 'react';
+  if (normalized === 'system' || normalized === 'system design' || normalized === 'system-design') return 'system';
+  if (normalized === 'behavioral' || normalized === 'behavioural') return 'behavioral';
+  if (normalized === 'data' || normalized === 'sql') return 'data';
+  return null;
+}
+
+export function lmsQuizSkillLabel(skill: string | null | undefined) {
+  const normalized = lmsNormalizeQuizSkill(skill);
+  return normalized ? lmsQuizSkillMeta[normalized].label : null;
+}
+
 export function lmsQuizIdForSkill(skill: string | null) {
-  if (!skill) return 'q2';
-  if (skill === 'react') return 'q2';
-  if (skill === 'javascript') return 'q1';
-  if (skill === 'system') return 'q6';
-  if (skill === 'behavioral') return 'q4';
-  if (skill === 'data') return 'q5';
-  return 'q2';
+  const normalized = lmsNormalizeQuizSkill(skill);
+  return normalized ? lmsQuizSkillMeta[normalized].defaultQuizId : 'q2';
 }
 
 export const quizzesAIRecommended = {
+  quizId: 'q3',
   title: 'Full-stack JavaScript deep dive',
   topic: 'JavaScript & async',
   questions: 20,
@@ -569,28 +669,104 @@ export const quizzesRetryWeak = [
 ];
 
 export const quizzesMasteryByTopic = [
-  { topic: 'JavaScript', pct: 68 },
-  { topic: 'React', pct: 74 },
-  { topic: 'System design', pct: 42 },
-  { topic: 'Behavioral', pct: 81 },
+  { topic: 'JavaScript', slug: 'javascript', pct: 68 },
+  { topic: 'React', slug: 'react', pct: 74 },
+  { topic: 'System design', slug: 'system', pct: 42 },
+  { topic: 'Behavioral', slug: 'behavioral', pct: 81 },
 ];
 
 export const quizzesRecentPerformance = { score: 76, label: 'Last quiz · 2 days ago' };
 
-export const quizzesCatalog: Array<{
-  id: string;
-  title: string;
-  questions: number;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  topic: string;
-}> = [
-  { id: 'q1', title: 'JavaScript essentials', questions: 24, difficulty: 'Easy', topic: 'JavaScript' },
-  { id: 'q2', title: 'React & hooks', questions: 18, difficulty: 'Medium', topic: 'React' },
-  { id: 'q3', title: 'Async & networking', questions: 15, difficulty: 'Hard', topic: 'JavaScript' },
-  { id: 'q4', title: 'Behavioral scenarios', questions: 12, difficulty: 'Easy', topic: 'Behavioral' },
-  { id: 'q5', title: 'SQL & data modeling', questions: 20, difficulty: 'Medium', topic: 'Data' },
-  { id: 'q6', title: 'System design quiz', questions: 10, difficulty: 'Hard', topic: 'System design' },
+export const quizzesCatalog: LmsQuizCatalogItem[] = [
+  {
+    id: 'q1',
+    title: 'JavaScript essentials',
+    questions: 24,
+    difficulty: 'Easy',
+    topic: 'JavaScript',
+    description: 'Core language fundamentals, scoping rules, coercion, and quick debugging checks.',
+    estMinutes: 8,
+    whyRecommended: 'A reliable reset when language basics are dragging down frontend quiz performance.',
+    weakConcepts: ['let vs var scoping', 'strict equality checks', 'truthy vs falsy edge cases'],
+    recommendedCourseId: 'c1',
+    courseFocus: 'frontend',
+    relatedQuizIds: ['q3', 'q2'],
+  },
+  {
+    id: 'q2',
+    title: 'React & hooks',
+    questions: 18,
+    difficulty: 'Medium',
+    topic: 'React',
+    description: 'Hooks behavior, rendering decisions, list reconciliation, and component-level trade-offs.',
+    estMinutes: 10,
+    whyRecommended: 'Ideal when you need stronger confidence in React interview fundamentals.',
+    weakConcepts: ['useEffect timing', 'keys and reconciliation', 'state update flow'],
+    recommendedCourseId: 'c1',
+    courseFocus: 'react',
+    relatedQuizIds: ['q1'],
+  },
+  {
+    id: 'q3',
+    title: 'Async & networking',
+    questions: 15,
+    difficulty: 'Hard',
+    topic: 'JavaScript',
+    description: 'Promises, microtasks, fetch behavior, and async reasoning under interview pressure.',
+    estMinutes: 12,
+    whyRecommended: 'Strong follow-up when async flow questions have started costing points.',
+    weakConcepts: ['Promise queues', 'await behavior', 'networking error handling'],
+    recommendedCourseId: 'c1',
+    courseFocus: 'frontend',
+    relatedQuizIds: ['q1', 'q2'],
+  },
+  {
+    id: 'q4',
+    title: 'Behavioral scenarios',
+    questions: 12,
+    difficulty: 'Easy',
+    topic: 'Behavioral',
+    description: 'Short STAR-based prompts to tighten story clarity, ownership, and measurable outcomes.',
+    estMinutes: 6,
+    whyRecommended: 'Best for improving recruiter screens and conversational confidence quickly.',
+    weakConcepts: ['result framing', 'conflict examples', 'stakeholder alignment'],
+    recommendedCourseId: 'c6',
+    courseFocus: 'career narrative',
+    relatedQuizIds: [],
+  },
+  {
+    id: 'q5',
+    title: 'SQL & data modeling',
+    questions: 20,
+    difficulty: 'Medium',
+    topic: 'Data',
+    description: 'Schema basics, keys, relational thinking, and practical data vocabulary for product roles.',
+    estMinutes: 11,
+    whyRecommended: 'A useful bridge between analytics basics and product-impact communication.',
+    weakConcepts: ['primary keys', 'table relationships', 'basic normalization'],
+    recommendedCourseId: 'c3',
+    courseFocus: 'metrics',
+    relatedQuizIds: ['q6'],
+  },
+  {
+    id: 'q6',
+    title: 'System design quiz',
+    questions: 10,
+    difficulty: 'Hard',
+    topic: 'System design',
+    description: 'Caching, APIs, traffic patterns, and architecture trade-offs for interview warm-ups.',
+    estMinutes: 14,
+    whyRecommended: 'High-impact practice when architecture trade-offs are your current weak spot.',
+    weakConcepts: ['CDN usage', 'caching strategies', 'service boundaries'],
+    recommendedCourseId: 'c5',
+    courseFocus: 'system design',
+    relatedQuizIds: ['q5'],
+  },
 ];
+
+export const lmsQuizCatalogById = Object.fromEntries(
+  quizzesCatalog.map((quiz) => [quiz.id, quiz] as const)
+) as Record<string, LmsQuizCatalogItem>;
 
 export const quizzesAIExplanation =
   'Based on your progress, revise JavaScript closures and React rendering before taking the advanced quiz.';

@@ -3,14 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  BookOpen,
   Sparkles,
   CalendarDays,
   PlayCircle,
   Target,
   Layers,
-  Mic2,
-  FileText,
   Lightbulb,
 } from 'lucide-react';
 import { LMS_CARD_INTERACTIVE, LMS_SECTION_TITLE, LMS_PAGE_SUBTITLE } from './constants';
@@ -399,33 +396,6 @@ export default function LmsDashboardPage() {
               </div>
             );
           })}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className={LMS_SECTION_TITLE}>Quick actions</h2>
-        <div className="flex flex-col flex-wrap gap-3 sm:flex-row">
-          <Link
-            href="/lms/courses"
-            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#28A8E1] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md hover:scale-[1.01] active:scale-[0.98]"
-          >
-            <BookOpen className="h-4 w-4 shrink-0" strokeWidth={2} />
-            Browse learning catalog
-          </Link>
-          <Link
-            href="/lms/interview-prep"
-            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.98]"
-          >
-            <Mic2 className="h-4 w-4 shrink-0" strokeWidth={2} />
-            Launch interview prep drills
-          </Link>
-          <Link
-            href="/lms/resume-builder"
-            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.98]"
-          >
-            <FileText className="h-4 w-4 shrink-0" strokeWidth={2} />
-            Refine document formats
-          </Link>
         </div>
       </section>
     </div>

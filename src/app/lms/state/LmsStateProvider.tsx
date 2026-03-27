@@ -52,6 +52,13 @@ type LmsCareerPathState = {
   completedStepIds: string[];
 };
 
+type LmsQuizAttemptSummary = {
+  score: number;
+  completedAt: number;
+  bestScore: number;
+  durationSec?: number;
+};
+
 type LmsState = {
   savedCourseIds: string[];
   registeredEventIds: string[];
@@ -60,7 +67,7 @@ type LmsState = {
   courseProgress: Record<string, number>;
   courseLessonIndex: Record<string, number>;
   selectedSkill: string | null;
-  quizAttempts: Record<string, { score: number; completedAt: number }>;
+  quizAttempts: Record<string, LmsQuizAttemptSummary>;
   notes: LmsNote[];
   resumeDraft: {
     template: string | null;
@@ -93,7 +100,7 @@ type Action =
   | { type: 'setCourseProgress'; courseId: string; progress: number }
   | { type: 'setCourseLessonIndex'; courseId: string; index: number }
   | { type: 'setSelectedSkill'; skill: string | null }
-  | { type: 'setQuizAttempt'; quizId: string; score: number }
+  | { type: 'setQuizAttempt'; quizId: string; score: number; durationSec?: number }
   | {
       type: 'createNote';
       note: { id: string; title: string; body: string; type: NoteType; updated: string };
@@ -346,16 +353,25 @@ function sanitizeQuizAttempts(value: unknown): LmsState['quizAttempts'] {
     .map(([quizId, raw]) => {
       if (!isRecord(raw)) return null;
       if (typeof raw.score !== 'number' || !Number.isFinite(raw.score)) return null;
+      const normalizedScore = clampPct(raw.score);
       return [
         quizId,
         {
-          score: clampPct(raw.score),
+          score: normalizedScore,
           completedAt:
             typeof raw.completedAt === 'number' && Number.isFinite(raw.completedAt) ? raw.completedAt : Date.now(),
+          bestScore:
+            typeof raw.bestScore === 'number' && Number.isFinite(raw.bestScore)
+              ? clampPct(raw.bestScore)
+              : normalizedScore,
+          durationSec:
+            typeof raw.durationSec === 'number' && Number.isFinite(raw.durationSec)
+              ? Math.max(0, Math.round(raw.durationSec))
+              : undefined,
         },
       ] as const;
     })
-    .filter((entry): entry is readonly [string, { score: number; completedAt: number }] => Boolean(entry));
+    .filter((entry): entry is readonly [string, LmsQuizAttemptSummary] => Boolean(entry));
   return Object.fromEntries(entries);
 }
 
@@ -495,14 +511,25 @@ function reducer(state: LmsState, action: Action): LmsState {
       });
     case 'setSelectedSkill':
       return syncCareerPathState({ ...state, selectedSkill: action.skill });
-    case 'setQuizAttempt':
+    case 'setQuizAttempt': {
+      const prevAttempt = state.quizAttempts[action.quizId];
+      const nextScore = clampPct(action.score);
       return syncCareerPathState({
         ...state,
         quizAttempts: {
           ...state.quizAttempts,
-          [action.quizId]: { score: clampPct(action.score), completedAt: Date.now() },
+          [action.quizId]: {
+            score: nextScore,
+            completedAt: Date.now(),
+            bestScore: Math.max(prevAttempt?.bestScore ?? prevAttempt?.score ?? 0, nextScore),
+            durationSec:
+              typeof action.durationSec === 'number' && Number.isFinite(action.durationSec)
+                ? Math.max(0, Math.round(action.durationSec))
+                : prevAttempt?.durationSec,
+          },
         },
       });
+    }
     case 'createNote':
       return syncCareerPathState({ ...state, notes: [action.note, ...state.notes] });
     case 'updateNote':
@@ -579,7 +606,7 @@ type LmsStateApi = {
   setCourseProgress: (courseId: string, progress: number) => void;
   setCourseLessonIndex: (courseId: string, index: number) => void;
   setSelectedSkill: (skill: string | null) => void;
-  setQuizAttempt: (quizId: string, score: number) => void;
+  setQuizAttempt: (quizId: string, score: number, durationSec?: number) => void;
   createNote: (note: { title: string; body: string; type: NoteType }) => string;
   updateNote: (id: string, patch: Partial<{ title: string; body: string; type: NoteType }>) => void;
   deleteNote: (id: string) => void;
@@ -642,7 +669,8 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
   );
   const setSelectedSkill = useCallback((skill: string | null) => dispatch({ type: 'setSelectedSkill', skill }), []);
   const setQuizAttempt = useCallback(
-    (quizId: string, score: number) => dispatch({ type: 'setQuizAttempt', quizId, score }),
+    (quizId: string, score: number, durationSec?: number) =>
+      dispatch({ type: 'setQuizAttempt', quizId, score, durationSec }),
     []
   );
   const createNote = useCallback((note: { title: string; body: string; type: NoteType }) => {

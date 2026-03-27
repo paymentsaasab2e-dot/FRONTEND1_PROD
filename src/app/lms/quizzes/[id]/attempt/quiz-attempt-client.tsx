@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -21,11 +21,26 @@ import { useLmsState } from "../../../state/LmsStateProvider";
 type StoredAttempt = {
   quizId: string;
   answers: Record<string, number>;
+  score?: number;
+  durationSec?: number;
+  startedAt?: number;
   completedAt?: number;
 };
 
+const noopSubscribe = () => () => {};
+const EMPTY_ANSWERS: Record<string, number> = {};
+
 function storageKey(quizId: string) {
   return `lmsQuizAttempt:${quizId}`;
+}
+
+function readStoredAttemptRaw(quizId: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(storageKey(quizId));
+  } catch {
+    return null;
+  }
 }
 
 export function QuizAttemptClient({ quizId }: { quizId: string }) {
@@ -36,12 +51,33 @@ export function QuizAttemptClient({ quizId }: { quizId: string }) {
 
   const quiz = lmsQuizBank[quizId];
   const skillFromUrl = search.get("skill");
+  const storedAttemptRaw = useSyncExternalStore(
+    noopSubscribe,
+    () => readStoredAttemptRaw(quizId),
+    () => null
+  );
+  const storedAttempt = useMemo(() => {
+    if (!storedAttemptRaw) return null;
+    try {
+      const parsed = JSON.parse(storedAttemptRaw) as StoredAttempt;
+      return parsed?.quizId === quizId ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [quizId, storedAttemptRaw]);
 
   const questions = quiz?.questions ?? [];
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [startedAt, setStartedAt] = useState<number>(() => Date.now());
+  const [draftAnswers, setDraftAnswers] = useState<Record<string, number> | null>(null);
+  const [startedAtFallback] = useState<number>(() => Date.now());
+  const answers = useMemo(
+    () => draftAnswers ?? storedAttempt?.answers ?? EMPTY_ANSWERS,
+    [draftAnswers, storedAttempt?.answers]
+  );
+  const startedAt = storedAttempt?.startedAt ?? startedAtFallback;
   const [confirmExit, setConfirmExit] = useState(false);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (skillFromUrl) setSelectedSkill(skillFromUrl);
@@ -49,24 +85,12 @@ export function QuizAttemptClient({ quizId }: { quizId: string }) {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(storageKey(quizId));
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as StoredAttempt;
-      if (parsed?.quizId !== quizId) return;
-      if (parsed.answers) setAnswers(parsed.answers);
-    } catch {
-      // ignore
-    }
-  }, [quizId]);
-
-  useEffect(() => {
-    try {
-      const payload: StoredAttempt = { quizId, answers };
+      const payload: StoredAttempt = { quizId, answers, startedAt };
       sessionStorage.setItem(storageKey(quizId), JSON.stringify(payload));
     } catch {
       // ignore
     }
-  }, [quizId, answers]);
+  }, [quizId, answers, startedAt]);
 
   if (!quiz || questions.length === 0) {
     return (
@@ -97,8 +121,10 @@ export function QuizAttemptClient({ quizId }: { quizId: string }) {
   const q = questions[index];
   const answeredCount = Object.keys(answers).length;
 
-  const select = (optIndex: number) =>
-    setAnswers((prev) => ({ ...prev, [q.id]: optIndex }));
+  const select = (optIndex: number) => {
+    setConfirmSubmit(false);
+    setDraftAnswers((prev) => ({ ...(prev ?? answers), [q.id]: optIndex }));
+  };
 
   const canSubmit = answeredCount === questions.length;
 
@@ -110,7 +136,9 @@ export function QuizAttemptClient({ quizId }: { quizId: string }) {
     router.push("/lms/quizzes");
   };
 
-  const submit = () => {
+  const submit = (submittedAt: number) => {
+    if (!canSubmit || isSubmitting) return;
+    setIsSubmitting(true);
     const correct = questions.reduce((acc, question) => {
       const chosen = answers[question.id];
       return acc + (chosen === question.correctIndex ? 1 : 0);
@@ -118,13 +146,18 @@ export function QuizAttemptClient({ quizId }: { quizId: string }) {
     const score = questions.length
       ? Math.round((correct / questions.length) * 100)
       : 0;
-    setQuizAttempt(quizId, score);
+    const completedAt = Math.max(startedAt, Math.round(performance.timeOrigin + submittedAt));
+    const durSec = Math.max(0, Math.round((completedAt - startedAt) / 1000));
+    setQuizAttempt(quizId, score, durSec);
 
     try {
       const payload: StoredAttempt = {
         quizId,
         answers,
-        completedAt: Date.now(),
+        score,
+        durationSec: durSec,
+        startedAt,
+        completedAt,
       };
       sessionStorage.setItem(storageKey(quizId), JSON.stringify(payload));
     } catch {
@@ -136,7 +169,6 @@ export function QuizAttemptClient({ quizId }: { quizId: string }) {
       message: `Score: ${score}% (mock).`,
       tone: score >= 70 ? "success" : "info",
     });
-    const durSec = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
     router.push(
       `/lms/quizzes/${quizId}/result?duration=${durSec}${
         skillFromUrl ? `&skill=${encodeURIComponent(skillFromUrl)}` : ""
@@ -277,13 +309,53 @@ export function QuizAttemptClient({ quizId }: { quizId: string }) {
         ) : (
           <LmsCtaButton
             variant="primary"
-            onClick={submit}
+            onClick={() => setConfirmSubmit(true)}
             disabled={!canSubmit}
           >
-            Submit
+            Review and submit
           </LmsCtaButton>
         )}
       </div>
+
+      {confirmSubmit ? (
+        <div className={`${LMS_CARD_CLASS} border-sky-100 bg-sky-50/40 space-y-4`}>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+              Submit confirmation
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-gray-900">
+              Ready to lock this attempt?
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              You answered {answeredCount} of {questions.length} questions. Once
+              you submit, we will open your result summary and review state.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold text-gray-600">
+            <span className="rounded-full border border-sky-100 bg-white px-3 py-1">
+              All questions answered
+            </span>
+            <span className="rounded-full border border-sky-100 bg-white px-3 py-1">
+              Topic: {quiz.skill}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <LmsCtaButton
+              variant="secondary"
+              onClick={() => setConfirmSubmit(false)}
+            >
+              Back to questions
+            </LmsCtaButton>
+            <LmsCtaButton
+              variant="primary"
+              onClick={(event) => submit(event.timeStamp)}
+              loading={isSubmitting}
+            >
+              Confirm submit
+            </LmsCtaButton>
+          </div>
+        </div>
+      ) : null}
 
       {!canSubmit ? (
         <p className="text-xs font-medium text-gray-500">
