@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react';
 import { CalendarDays, Monitor, MapPin, Sparkles, Users, Clock, AlertTriangle, ArrowRight, Search, PlusCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../constants';
 import { AISectionHeading } from '../components/ai';
 import { eventsRecommendedIntro, eventsWithAI } from '../data/ai-mock';
@@ -40,7 +39,6 @@ function typeBadge(type: string) {
 type TabKey = 'All' | 'Upcoming' | 'Registered' | 'Past';
 
 export default function LmsEventsPage() {
-  const router = useRouter();
   const overlay = useLmsOverlay();
   const toast = useLmsToast();
   const { state, registerEvent, unregisterEvent, addPlannedItem } = useLmsState();
@@ -53,7 +51,7 @@ export default function LmsEventsPage() {
       // 1. Tab filter
       if (activeTab === 'Upcoming' && ev.status !== 'upcoming') return false;
       if (activeTab === 'Past' && ev.status !== 'past') return false;
-      if (activeTab === 'Registered' && !state.registeredEventTitles.includes(ev.id)) return false;
+      if (activeTab === 'Registered' && !state.registeredEventIds.includes(ev.id)) return false;
 
       // 2. Search filter
       const qs = searchQuery.toLowerCase();
@@ -62,21 +60,21 @@ export default function LmsEventsPage() {
       }
       return true;
     });
-  }, [activeTab, searchQuery, state.registeredEventTitles]);
+  }, [activeTab, searchQuery, state.registeredEventIds]);
 
   const recommendedIds = useMemo(() => {
     // Arbitrary recommendation logic based on a weak topic or just picking the first 2 that are upcoming and not registered
     return eventsWithAI
-      .filter(e => e.status === 'upcoming' && !state.registeredEventTitles.includes(e.id))
+      .filter(e => e.status === 'upcoming' && !state.registeredEventIds.includes(e.id))
       .slice(0, 2)
       .map(e => e.id);
-  }, [state.registeredEventTitles]);
+  }, [state.registeredEventIds]);
 
   const openRegister = (e: React.MouseEvent, id: string, title: string) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const isRegistered = state.registeredEventTitles.includes(id);
+    const isRegistered = state.registeredEventIds.includes(id);
 
     overlay.openSheet({
       title: isRegistered ? 'Cancel Registration' : 'Register for Event',
@@ -123,7 +121,9 @@ export default function LmsEventsPage() {
         id: `evt-${id}`,
         type: 'event',
         label: title,
-        href: `/lms/events/${id}`
+        href: `/lms/events/${id}`,
+        sourceModule: 'events',
+        sourceLabel: 'LMS Events'
     });
     toast.push({ title: 'Added to plan', message: 'Event marked in Career Path plan.', tone: 'success' });
   };
@@ -143,7 +143,7 @@ export default function LmsEventsPage() {
           <p className="text-sm font-normal text-gray-500 -mt-2">{eventsRecommendedIntro}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {eventsWithAI.filter(ev => recommendedIds.includes(ev.id)).map((ev) => {
-              const registered = state.registeredEventTitles.includes(ev.id);
+              const registered = state.registeredEventIds.includes(ev.id);
               return (
                  <EventCard key={`rec-${ev.id}`} ev={ev} registered={registered} onRegister={(e) => openRegister(e, ev.id, ev.title)} onPlan={(e) => handlePlanClick(e, ev.id, ev.title)} />
               )
@@ -162,9 +162,9 @@ export default function LmsEventsPage() {
                         className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         {tab}
-                        {tab === 'Registered' && state.registeredEventTitles.length > 0 && (
+                        {tab === 'Registered' && state.registeredEventIds.length > 0 && (
                             <span className="ml-2 inline-flex items-center justify-center rounded-full bg-[#28A8E1]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#28A8E1]">
-                                {state.registeredEventTitles.length}
+                                {state.registeredEventIds.length}
                             </span>
                         )}
                     </button>
@@ -196,7 +196,7 @@ export default function LmsEventsPage() {
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {displayedEvents.map((ev) => {
-                const registered = state.registeredEventTitles.includes(ev.id);
+                const registered = state.registeredEventIds.includes(ev.id);
                 return (
                     <EventCard key={`list-${ev.id}`} ev={ev} registered={registered} onRegister={(e) => openRegister(e, ev.id, ev.title)} onPlan={(e) => handlePlanClick(e, ev.id, ev.title)} />
                 )

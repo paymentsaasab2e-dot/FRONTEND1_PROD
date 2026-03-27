@@ -3,19 +3,28 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Eye, Save, Sparkles, Printer, RotateCcw, Plus, Trash2, ArrowRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { LMS_CARD_CLASS, LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../../constants';
 import { useLmsState } from '../../state/LmsStateProvider';
 import { useLmsToast } from '../../components/ux/LmsToastProvider';
 import { LmsCtaButton } from '../../components/ux/LmsCtaButton';
 import { LmsStatusBadge } from '../../components/ux/LmsStatusBadge';
 import { ResumeExperience, ResumeEducation } from '../../state/LmsStateProvider';
+import { LmsSkeleton } from '../../components/states/LmsSkeleton';
 
-export default function ResumeEditorPage() {
+function ResumeEditorPageFallback() {
+  return (
+    <div className={LMS_CARD_CLASS}>
+      <LmsSkeleton lines={6} />
+    </div>
+  );
+}
+
+function ResumeEditorPageContent() {
   const router = useRouter();
   const search = useSearchParams();
   const toast = useLmsToast();
-  const { state, setResumeTemplate, setResumeDraftSections, markResumeSaved, resetResumeDraft, addPlannedItem, careerToggleStep } = useLmsState();
+  const { state, setResumeTemplate, setResumeDraftSections, markResumeSaved, resetResumeDraft, addPlannedItem } = useLmsState();
 
   const template = search.get('template');
   const focus = search.get('focus');
@@ -88,12 +97,13 @@ export default function ResumeEditorPage() {
 
   const handleSaveToCareerPath = () => {
       markResumeSaved();
-      careerToggleStep('resume-builder');
       addPlannedItem({
           id: 'res-1',
           type: 'resume',
           label: 'Completed Resume Draft',
-          href: '/lms/resume-builder'
+          href: '/lms/resume-builder',
+          sourceModule: 'resume-builder',
+          sourceLabel: 'Resume Builder'
       });
       toast.push({ title: 'Synced to Career Path', message: 'Your resume draft was saved and completion tracked natively.', tone: 'success' });
       router.push('/lms/career-path');
@@ -507,5 +517,13 @@ export default function ResumeEditorPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function ResumeEditorPage() {
+  return (
+    <Suspense fallback={<ResumeEditorPageFallback />}>
+      <ResumeEditorPageContent />
+    </Suspense>
   );
 }

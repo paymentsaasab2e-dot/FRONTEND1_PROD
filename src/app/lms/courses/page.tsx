@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Clock, BookOpen, Code2, Palette, LineChart, Sparkles, Search } from 'lucide-react';
+import { Suspense, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Clock, BookOpen, Code2, Palette, LineChart, Search } from 'lucide-react';
 import { LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE } from '../constants';
 import { LmsProgressBar } from '../components/LmsProgressBar';
 import { AISectionHeading } from '../components/ai';
@@ -12,6 +12,7 @@ import { useLmsState } from '../state/LmsStateProvider';
 import { useLmsToast } from '../components/ux/LmsToastProvider';
 import { LmsStatusBadge } from '../components/ux/LmsStatusBadge';
 import { LmsEmptyState } from '../components/states/LmsEmptyState';
+import { LmsSkeleton } from '../components/states/LmsSkeleton';
 import { courseStatusFromPct, flattenCourseLessons, normalizePct, parseDurationToMinutes } from './course-utils';
 
 const ICON_MAP: Record<CourseIconKey, typeof Code2> = {
@@ -42,10 +43,48 @@ function levelBadge(level: 'Beginner' | 'Intermediate') {
   );
 }
 
-export default function LmsCoursesPage() {
+function courseMatchesFocus(
+  course: (typeof lmsCoursesWithAI)[number],
+  focus: string
+) {
+  if (!focus) return false;
+  const normalizedFocus = focus.trim().toLowerCase();
+  if (!normalizedFocus) return false;
+
+  const meta = lmsCourseMeta[course.id];
+  const haystack = [
+    course.title,
+    course.description,
+    course.aiContext,
+    meta?.category ?? '',
+    ...(meta?.keywords ?? []),
+    ...(meta?.skills ?? []),
+    ...(meta?.outcomes ?? []),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  if (haystack.includes(normalizedFocus)) return true;
+  return normalizedFocus
+    .split(/[\s-]+/)
+    .filter((token) => token.length > 2)
+    .some((token) => haystack.includes(token));
+}
+
+function LmsCoursesPageFallback() {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <LmsSkeleton lines={5} />
+    </div>
+  );
+}
+
+function LmsCoursesPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { state, toggleSaveCourse, setLastActiveCourseId } = useLmsState();
   const toast = useLmsToast();
+  const focus = searchParams.get('focus')?.trim() ?? '';
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<'all' | 'Beginner' | 'Intermediate'>('all');
   const [status, setStatus] = useState<'all' | 'in_progress' | 'completed' | 'saved'>('all');
@@ -92,9 +131,22 @@ export default function LmsCoursesPage() {
           normalizePct(state.courseProgress[b.id] ?? b.progress) - normalizePct(state.courseProgress[a.id] ?? a.progress)
       );
     }
-    // recommended = original order
+    if (focus) {
+      sorted.sort((a, b) => {
+        const aMatches = courseMatchesFocus(a, focus);
+        const bMatches = courseMatchesFocus(b, focus);
+        if (aMatches === bMatches) return 0;
+        return aMatches ? -1 : 1;
+      });
+    }
+
     return sorted;
-  }, [query, level, status, category, durationBand, sortBy, state.courseProgress, state.savedCourseIds]);
+  }, [category, durationBand, focus, level, query, sortBy, state.courseProgress, state.savedCourseIds, status]);
+
+  const focusMatchCount = useMemo(
+    () => (focus ? courses.filter((course) => courseMatchesFocus(course, focus)).length : 0),
+    [courses, focus]
+  );
 
   return (
     <div className="space-y-8">
@@ -171,17 +223,36 @@ export default function LmsCoursesPage() {
               key={cat}
               type="button"
               onClick={() => setCategory(cat)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
-                category === cat
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${category === cat
                   ? 'border-[#28A8E1]/40 bg-[#28A8E1]/10 text-gray-900'
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+                }`}
             >
               {cat === 'all' ? 'All categories' : cat}
             </button>
           ))}
         </div>
       </section>
+
+      {focus ? (
+        <section className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-gray-900">
+                Suggested lessons for <span className="text-[#28A8E1]">{focus}</span>
+              </p>
+              <p className="mt-1 text-sm text-gray-600">
+                {focusMatchCount > 0
+                  ? `${focusMatchCount} matching course${focusMatchCount === 1 ? '' : 's'} surfaced first based on your quiz context.`
+                  : 'No direct matches were found, so the catalog is still available for broader browsing.'}
+              </p>
+            </div>
+            <Link href="/lms/courses" className="text-sm font-semibold text-[#28A8E1] hover:underline">
+              Clear suggestion focus
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       {courses.length === 0 ? (
         <LmsEmptyState
@@ -208,6 +279,7 @@ export default function LmsCoursesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {courses.map((course) => {
+          const isFocusMatch = focus ? courseMatchesFocus(course, focus) : false;
           const Icon = ICON_MAP[course.iconKey];
           const saved = state.savedCourseIds.includes(course.id);
           const pct = state.courseProgress[course.id] ?? course.progress ?? 0;
@@ -223,7 +295,7 @@ export default function LmsCoursesPage() {
           return (
             <div
               key={course.id}
-              className={LMS_CARD_INTERACTIVE}
+              className={`${LMS_CARD_INTERACTIVE} ${isFocusMatch ? 'border-[#28A8E1]/30 bg-sky-50/20' : ''}`}
               onClick={(e) => {
                 const target = e.target as HTMLElement;
                 if (target.closest('a,button')) return;
@@ -254,62 +326,62 @@ export default function LmsCoursesPage() {
                       >
                         {course.title}
                       </Link>
-                      {saved ? <LmsStatusBadge label="Saved" tone="info" /> : null}
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {isFocusMatch ? <LmsStatusBadge label={`Focus: ${focus}`} tone="success" /> : null}
+                        {saved ? <LmsStatusBadge label="Saved" tone="info" /> : null}
+                      </div>
                     </div>
                     <p className="mt-1.5 text-sm text-gray-500 font-normal leading-relaxed">{course.description}</p>
                   </div>
 
-                  <div className="flex items-start gap-2 rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2">
-                    <Sparkles className="h-4 w-4 shrink-0 text-violet-600 mt-0.5" strokeWidth={2} />
-                    <p className="text-xs font-medium text-violet-900 leading-relaxed">{course.aiContext}</p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {levelBadge(course.level)}
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500">
-                      <Clock className="h-3.5 w-3.5" strokeWidth={2} />
-                      {course.duration}
-                    </span>
-                    {meta?.category ? (
-                      <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">
-                        {meta.category}
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {levelBadge(course.level)}
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500">
+                        <Clock className="h-3.5 w-3.5" strokeWidth={2} />
+                        {course.duration}
                       </span>
+                      {meta?.category ? (
+                        <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">
+                          {meta.category}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {pct > 0 && pct < 100 ? (
+                      <LmsProgressBar value={pct} />
                     ) : null}
-                  </div>
+                    {pct >= 100 ? (
+                      <p className="text-xs font-semibold text-emerald-700">Completed — revisit anytime</p>
+                    ) : null}
 
-                  {pct > 0 && pct < 100 ? (
-                    <LmsProgressBar value={pct} />
-                  ) : null}
-                  {pct >= 100 ? (
-                    <p className="text-xs font-semibold text-emerald-700">Completed — revisit anytime</p>
-                  ) : null}
+                    {pct > 0 && pct < 100 && currentLesson ? (
+                      <p className="text-xs font-medium text-gray-500">Resume: {currentLesson.lessonTitle}</p>
+                    ) : null}
 
-                  {pct > 0 && pct < 100 && currentLesson ? (
-                    <p className="text-xs font-medium text-gray-500">Resume: {currentLesson.lessonTitle}</p>
-                  ) : null}
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    <Link
-                      href={courseHref}
-                      onClick={() => setLastActiveCourseId(course.id)}
-                      className="flex-1 min-w-[6rem] rounded-xl bg-[#28A8E1] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] text-center"
-                    >
-                      {courseCtaLabel(pct)}
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toggleSaveCourse(course.id);
-                        toast.push({
-                          title: saved ? 'Removed from saved' : 'Saved course',
-                          message: course.title,
-                          tone: 'info',
-                        });
-                      }}
-                      className="flex-1 min-w-[6rem] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition-all duration-200 hover:bg-gray-50 hover:shadow-sm active:scale-[0.98] cursor-pointer"
-                    >
-                      {saved ? 'Unsave' : 'Save'}
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap pt-2">
+                      <Link
+                        href={courseHref}
+                        onClick={() => setLastActiveCourseId(course.id)}
+                        className="flex-1 min-w-[6rem] rounded-xl bg-[#28A8E1] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] text-center"
+                      >
+                        {courseCtaLabel(pct)}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleSaveCourse(course.id);
+                          toast.push({
+                            title: saved ? 'Removed from saved' : 'Saved course',
+                            message: course.title,
+                            tone: 'info',
+                          });
+                        }}
+                        className="flex-1 min-w-[6rem] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 transition-all duration-200 hover:bg-gray-50 hover:shadow-sm active:scale-[0.98] cursor-pointer"
+                      >
+                        {saved ? 'Unsave' : 'Save'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -318,5 +390,13 @@ export default function LmsCoursesPage() {
         })}
       </div>
     </div>
+  );
+}
+
+export default function LmsCoursesPage() {
+  return (
+    <Suspense fallback={<LmsCoursesPageFallback />}>
+      <LmsCoursesPageContent />
+    </Suspense>
   );
 }

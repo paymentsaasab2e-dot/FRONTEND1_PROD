@@ -1,15 +1,15 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Building2, CheckCircle2 } from 'lucide-react';
 import { LMS_CARD_CLASS } from '@/app/lms/constants';
+import { LmsInlineError } from '@/app/lms/components/states/LmsInlineError';
 import { mockCompanyResearch } from '@/modules/interview-prep/data/mockInterviewData';
 import { useLmsState } from '@/app/lms/state/LmsStateProvider';
 import { useLmsToast } from '@/app/lms/components/ux/LmsToastProvider';
 
 export default function CompanyResearchPage() {
-  const router = useRouter();
   const params = useParams() as { slug: string };
   const toast = useLmsToast();
   const { addPlannedItem } = useLmsState();
@@ -23,7 +23,10 @@ export default function CompanyResearchPage() {
         <Link href="/lms/interview-prep" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:underline">
           <ArrowLeft className="h-4 w-4" /> Back to prep
         </Link>
-        <p className="text-gray-500">Company mock data not found for slugs other than 'stripe' and 'notion'.</p>
+        <LmsInlineError
+          title="Company research not found"
+          message="This company does not have a supported mock research profile yet. Please return to Interview Prep and choose one of the suggested companies."
+        />
       </div>
     );
   }
@@ -48,7 +51,14 @@ export default function CompanyResearchPage() {
         <button
           type="button"
           onClick={() => {
-            addPlannedItem({ id: `ip:co:${company.slug}`, type: 'topic', label: `Target: ${company.name}`, href: `/lms/interview-prep/company/${company.slug}` });
+            addPlannedItem({ 
+              id: `ip:co:${company.slug}`, 
+              type: 'topic', 
+              label: `Target: ${company.name}`, 
+              href: `/lms/interview-prep/company/${company.slug}`,
+              sourceModule: 'interview-prep',
+              sourceLabel: 'Company Research'
+            });
             toast.push({ title: 'Company Targeted', message: 'Added to study plan.', tone: 'success' });
           }}
           className="shrink-0 rounded-2xl bg-emerald-50 px-5 py-3 text-sm font-bold text-emerald-800 border border-emerald-200 hover:bg-emerald-100 hover:shadow-sm"

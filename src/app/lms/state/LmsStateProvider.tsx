@@ -2,7 +2,13 @@
 
 import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer } from 'react';
-import { notesUserNotes, type NoteType } from '../data/ai-mock';
+import {
+  CAREER_STEP_IDS,
+  careerMissionStepIds,
+  eventsWithAI,
+  notesUserNotes,
+  type NoteType,
+} from '../data/ai-mock';
 
 export type LmsPlannedItemType = 'course' | 'quiz' | 'event' | 'topic' | 'note' | 'resume';
 
@@ -11,6 +17,9 @@ export type LmsPlannedItem = {
   type: LmsPlannedItemType;
   label: string;
   href?: string;
+  sourceModule?: string;
+  sourceLabel?: string;
+  context?: string;
   createdAt: number;
 };
 
@@ -29,22 +38,30 @@ export type ResumeEducation = {
   duration: string;
 };
 
+type LmsNote = {
+  id: string;
+  title: string;
+  body: string;
+  updated: string;
+  type: NoteType;
+};
+
+type LmsCareerPathState = {
+  started: boolean;
+  manualCompletedStepIds: string[];
+  completedStepIds: string[];
+};
+
 type LmsState = {
   savedCourseIds: string[];
-  registeredEventTitles: string[];
+  registeredEventIds: string[];
   plannedItems: LmsPlannedItem[];
   lastActiveCourseId: string | null;
   courseProgress: Record<string, number>;
   courseLessonIndex: Record<string, number>;
   selectedSkill: string | null;
   quizAttempts: Record<string, { score: number; completedAt: number }>;
-  notes: Array<{
-    id: string;
-    title: string;
-    body: string;
-    updated: string;
-    type: NoteType;
-  }>;
+  notes: LmsNote[];
   resumeDraft: {
     template: string | null;
     updatedAtLabel: string;
@@ -62,16 +79,14 @@ type LmsState = {
       education: ResumeEducation[];
     };
   };
-  careerPath: {
-    started: boolean;
-    completedStepIds: string[];
-  };
+  careerPath: LmsCareerPathState;
+  isHydrated: boolean;
 };
 
 type Action =
   | { type: 'toggleSaveCourse'; courseId: string }
-  | { type: 'registerEvent'; title: string }
-  | { type: 'unregisterEvent'; title: string }
+  | { type: 'registerEvent'; eventId: string }
+  | { type: 'unregisterEvent'; eventId: string }
   | { type: 'addPlannedItem'; item: Omit<LmsPlannedItem, 'createdAt'> }
   | { type: 'removePlannedItem'; id: string }
   | { type: 'setLastActiveCourseId'; courseId: string | null }
@@ -91,10 +106,17 @@ type Action =
   | { type: 'markResumeSaved' }
   | { type: 'careerStart' }
   | { type: 'careerToggleStep'; stepId: string }
+  | { type: 'careerSetStepCompletion'; stepId: string; completed: boolean }
   | { type: 'careerReset' }
   | { type: 'hydrate'; state: LmsState };
 
 const STORAGE_KEY = 'lmsState:v1';
+const VALID_NOTE_TYPES: NoteType[] = ['Interview Prep', 'Learning Notes', 'Company Research', 'Salary Research'];
+const VALID_PLANNED_TYPES: LmsPlannedItemType[] = ['course', 'quiz', 'event', 'topic', 'note', 'resume'];
+const VALID_EVENT_IDS = new Set(eventsWithAI.map((event) => event.id));
+const EVENT_TITLE_TO_ID = new Map(eventsWithAI.map((event) => [event.title.toLowerCase(), event.id]));
+const VALID_CAREER_STEP_IDS = new Set(careerMissionStepIds);
+const NETWORKING_EVENT_IDS = new Set(['evt-102', 'evt-104']);
 
 const initialResumeDraft: LmsState['resumeDraft'] = {
   template: null,
@@ -116,8 +138,9 @@ const initialResumeDraft: LmsState['resumeDraft'] = {
         company: 'Tech Corp',
         role: 'Frontend Engineer',
         duration: 'Jan 2024 - Present',
-        bullets: 'Built reusable UI components and improved dashboard performance.\nReduced feature dev time and improved Lighthouse scores (mock).',
-      }
+        bullets:
+          'Built reusable UI components and improved dashboard performance.\nReduced feature dev time and improved Lighthouse scores (mock).',
+      },
     ],
     education: [
       {
@@ -125,14 +148,14 @@ const initialResumeDraft: LmsState['resumeDraft'] = {
         institution: 'State University',
         degree: 'BS Computer Science',
         duration: '2019 - 2023',
-      }
+      },
     ],
   },
 };
 
 const initialState: LmsState = {
   savedCourseIds: [],
-  registeredEventTitles: [],
+  registeredEventIds: [],
   plannedItems: [],
   lastActiveCourseId: null,
   courseProgress: {},
@@ -141,127 +164,405 @@ const initialState: LmsState = {
   quizAttempts: {},
   notes: notesUserNotes.map((n) => ({
     ...n,
-    body: `Mock note body for “${n.title}”.\n\n- Add highlights\n- Add links\n- Convert into quiz prompts`,
+    body: `Mock note body for "${n.title}".\n\n- Add highlights\n- Add links\n- Convert into quiz prompts`,
   })),
   resumeDraft: initialResumeDraft,
   careerPath: {
     started: false,
-    completedStepIds: ['step-1', 'step-2'],
+    manualCompletedStepIds: [],
+    completedStepIds: [],
   },
+  isHydrated: false,
 };
 
 function clampPct(n: number) {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values));
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return uniqueStrings(
+    value
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  );
+}
+
+function normalizeEventIds(value: unknown) {
+  return uniqueStrings(
+    normalizeStringArray(value)
+      .map((entry) => {
+        if (VALID_EVENT_IDS.has(entry)) return entry;
+        return EVENT_TITLE_TO_ID.get(entry.toLowerCase()) ?? null;
+      })
+      .filter((entry): entry is string => Boolean(entry))
+  );
+}
+
+function normalizeCareerStepIds(value: unknown) {
+  return normalizeStringArray(value).filter((stepId) => VALID_CAREER_STEP_IDS.has(stepId));
+}
+
+function sanitizeNoteType(value: unknown): NoteType {
+  return VALID_NOTE_TYPES.includes(value as NoteType) ? (value as NoteType) : 'Learning Notes';
+}
+
+function sanitizeNotes(value: unknown): LmsNote[] {
+  if (!Array.isArray(value)) return initialState.notes;
+  const notes = value
+    .filter(isRecord)
+    .map((note) => {
+      if (typeof note.id !== 'string' || typeof note.title !== 'string' || typeof note.body !== 'string') return null;
+      return {
+        id: note.id,
+        title: note.title,
+        body: note.body,
+        updated: typeof note.updated === 'string' ? note.updated : 'Just now',
+        type: sanitizeNoteType(note.type),
+      } satisfies LmsNote;
+    })
+    .filter((note): note is LmsNote => Boolean(note));
+
+  return notes.length > 0 ? notes : initialState.notes;
+}
+
+function sanitizeExperience(value: unknown) {
+  if (!Array.isArray(value)) return initialResumeDraft.sections.experience;
+  const experience = value
+    .filter(isRecord)
+    .map((item) => {
+      if (
+        typeof item.id !== 'string' ||
+        typeof item.company !== 'string' ||
+        typeof item.role !== 'string' ||
+        typeof item.duration !== 'string' ||
+        typeof item.bullets !== 'string'
+      ) {
+        return null;
+      }
+      return item as ResumeExperience;
+    })
+    .filter((item): item is ResumeExperience => Boolean(item));
+
+  return experience.length > 0 ? experience : initialResumeDraft.sections.experience;
+}
+
+function sanitizeEducation(value: unknown) {
+  if (!Array.isArray(value)) return initialResumeDraft.sections.education;
+  const education = value
+    .filter(isRecord)
+    .map((item) => {
+      if (
+        typeof item.id !== 'string' ||
+        typeof item.institution !== 'string' ||
+        typeof item.degree !== 'string' ||
+        typeof item.duration !== 'string'
+      ) {
+        return null;
+      }
+      return item as ResumeEducation;
+    })
+    .filter((item): item is ResumeEducation => Boolean(item));
+
+  return education.length > 0 ? education : initialResumeDraft.sections.education;
+}
+
+function sanitizeResumeDraft(value: unknown): LmsState['resumeDraft'] {
+  if (!isRecord(value)) return initialResumeDraft;
+  const sections = isRecord(value.sections) ? value.sections : {};
+  const basics = isRecord(sections.basics) ? sections.basics : {};
+
+  return {
+    template: typeof value.template === 'string' ? value.template : null,
+    updatedAtLabel: typeof value.updatedAtLabel === 'string' ? value.updatedAtLabel : initialResumeDraft.updatedAtLabel,
+    sections: {
+      basics: {
+        name: typeof basics.name === 'string' ? basics.name : initialResumeDraft.sections.basics.name,
+        headline:
+          typeof basics.headline === 'string' ? basics.headline : initialResumeDraft.sections.basics.headline,
+        email: typeof basics.email === 'string' ? basics.email : initialResumeDraft.sections.basics.email,
+        phone: typeof basics.phone === 'string' ? basics.phone : initialResumeDraft.sections.basics.phone,
+        location:
+          typeof basics.location === 'string' ? basics.location : initialResumeDraft.sections.basics.location,
+      },
+      summary: typeof sections.summary === 'string' ? sections.summary : initialResumeDraft.sections.summary,
+      skills: typeof sections.skills === 'string' ? sections.skills : initialResumeDraft.sections.skills,
+      experience: sanitizeExperience(sections.experience),
+      education: sanitizeEducation(sections.education),
+    },
+  };
+}
+
+function sanitizePlannedItems(value: unknown): LmsPlannedItem[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(isRecord)
+    .map((item) => {
+      if (
+        typeof item.id !== 'string' ||
+        typeof item.label !== 'string' ||
+        typeof item.type !== 'string' ||
+        !VALID_PLANNED_TYPES.includes(item.type as LmsPlannedItemType)
+      ) {
+        return null;
+      }
+      return {
+        id: item.id,
+        label: item.label,
+        type: item.type as LmsPlannedItemType,
+        href: typeof item.href === 'string' ? item.href : undefined,
+        sourceModule: typeof item.sourceModule === 'string' ? item.sourceModule : undefined,
+        sourceLabel: typeof item.sourceLabel === 'string' ? item.sourceLabel : undefined,
+        context: typeof item.context === 'string' ? item.context : undefined,
+        createdAt: typeof item.createdAt === 'number' && Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
+      } satisfies LmsPlannedItem;
+    })
+    .filter((item): item is LmsPlannedItem => Boolean(item));
+}
+
+function sanitizeNumberRecord(
+  value: unknown,
+  normalizer: (input: number) => number
+): Record<string, number> {
+  if (!isRecord(value)) return {};
+  const entries = Object.entries(value)
+    .map(([key, raw]) => (typeof raw === 'number' && Number.isFinite(raw) ? [key, normalizer(raw)] : null))
+    .filter((entry): entry is [string, number] => Boolean(entry));
+  return Object.fromEntries(entries);
+}
+
+function sanitizeQuizAttempts(value: unknown): LmsState['quizAttempts'] {
+  if (!isRecord(value)) return {};
+  const entries = Object.entries(value)
+    .map(([quizId, raw]) => {
+      if (!isRecord(raw)) return null;
+      if (typeof raw.score !== 'number' || !Number.isFinite(raw.score)) return null;
+      return [
+        quizId,
+        {
+          score: clampPct(raw.score),
+          completedAt:
+            typeof raw.completedAt === 'number' && Number.isFinite(raw.completedAt) ? raw.completedAt : Date.now(),
+        },
+      ] as const;
+    })
+    .filter((entry): entry is readonly [string, { score: number; completedAt: number }] => Boolean(entry));
+  return Object.fromEntries(entries);
+}
+
+function buildCareerPathState(value: unknown): LmsCareerPathState {
+  const raw = isRecord(value) ? value : {};
+  return {
+    started: raw.started === true,
+    manualCompletedStepIds: normalizeCareerStepIds(raw.manualCompletedStepIds),
+    completedStepIds: normalizeCareerStepIds(raw.completedStepIds),
+  };
+}
+
+function deriveCareerCompletedStepIds(state: LmsState) {
+  const derived: string[] = [];
+
+  if ((state.quizAttempts.q1?.score ?? 0) >= 70) derived.push(CAREER_STEP_IDS.javascriptQuiz);
+  if ((state.courseProgress.c2 ?? 0) >= 100) derived.push(CAREER_STEP_IDS.uiCraftCourse);
+  if (state.quizAttempts.q2) derived.push(CAREER_STEP_IDS.reactQuiz);
+  if (state.notes.some((note) => note.type === 'Learning Notes')) derived.push(CAREER_STEP_IDS.learningNote);
+  if ((state.courseProgress.c1 ?? 0) >= 100) derived.push(CAREER_STEP_IDS.frontendReadinessCourse);
+  if ((state.quizAttempts.q6?.score ?? 0) >= 60) derived.push(CAREER_STEP_IDS.systemDesignQuiz);
+  if (state.resumeDraft.updatedAtLabel !== 'Not saved yet') derived.push(CAREER_STEP_IDS.resumeSync);
+  if (state.notes.some((note) => note.type === 'Salary Research')) derived.push(CAREER_STEP_IDS.salaryResearchNote);
+  if (state.registeredEventIds.includes('evt-103')) derived.push(CAREER_STEP_IDS.negotiationEvent);
+  if (state.registeredEventIds.some((eventId) => NETWORKING_EVENT_IDS.has(eventId))) {
+    derived.push(CAREER_STEP_IDS.networkingEvent);
+  }
+
+  return uniqueStrings(derived);
+}
+
+function syncCareerPathState(state: LmsState): LmsState {
+  const registeredEventIds = normalizeEventIds(state.registeredEventIds);
+  const manualCompletedStepIds = normalizeCareerStepIds(state.careerPath.manualCompletedStepIds);
+
+  const derivedIds = deriveCareerCompletedStepIds({
+    ...state,
+    registeredEventIds,
+    careerPath: {
+      ...state.careerPath,
+      manualCompletedStepIds,
+      completedStepIds: state.careerPath.completedStepIds,
+    },
+  });
+
+  const completedStepIds = uniqueStrings([...derivedIds, ...manualCompletedStepIds]);
+
+  const eventIdsChanged = registeredEventIds.join('|') !== state.registeredEventIds.join('|');
+  const manualChanged = manualCompletedStepIds.join('|') !== state.careerPath.manualCompletedStepIds.join('|');
+  const completedChanged = completedStepIds.join('|') !== state.careerPath.completedStepIds.join('|');
+
+  if (!eventIdsChanged && !manualChanged && !completedChanged) return state;
+
+  return {
+    ...state,
+    registeredEventIds,
+    careerPath: {
+      ...state.careerPath,
+      manualCompletedStepIds,
+      completedStepIds,
+    },
+  };
+}
+
+function hydrateState(raw: unknown): LmsState {
+  if (!isRecord(raw)) {
+    return syncCareerPathState({ ...initialState, isHydrated: true });
+  }
+
+  const storedEventIds =
+    'registeredEventIds' in raw ? raw.registeredEventIds : 'registeredEventTitles' in raw ? raw.registeredEventTitles : [];
+
+  const nextState: LmsState = {
+    ...initialState,
+    savedCourseIds: normalizeStringArray(raw.savedCourseIds),
+    registeredEventIds: normalizeEventIds(storedEventIds),
+    plannedItems: sanitizePlannedItems(raw.plannedItems),
+    lastActiveCourseId: typeof raw.lastActiveCourseId === 'string' ? raw.lastActiveCourseId : null,
+    courseProgress: sanitizeNumberRecord(raw.courseProgress, clampPct),
+    courseLessonIndex: sanitizeNumberRecord(raw.courseLessonIndex, (value) => Math.max(0, Math.floor(value))),
+    selectedSkill: typeof raw.selectedSkill === 'string' ? raw.selectedSkill : null,
+    quizAttempts: sanitizeQuizAttempts(raw.quizAttempts),
+    notes: sanitizeNotes(raw.notes),
+    resumeDraft: sanitizeResumeDraft(raw.resumeDraft),
+    careerPath: buildCareerPathState(raw.careerPath),
+    isHydrated: true,
+  };
+
+  return syncCareerPathState(nextState);
+}
+
 function reducer(state: LmsState, action: Action): LmsState {
   switch (action.type) {
-    case 'hydrate': {
-      // Safe migration for older resume drafts
-      let hydratedResumeDraft = action.state.resumeDraft;
-      if (typeof hydratedResumeDraft?.sections?.experience === 'string') {
-          hydratedResumeDraft = initialResumeDraft;
-      }
-      return { ...action.state, resumeDraft: hydratedResumeDraft || initialResumeDraft };
-    }
+    case 'hydrate':
+      return syncCareerPathState({ ...action.state, isHydrated: true });
     case 'toggleSaveCourse': {
       const has = state.savedCourseIds.includes(action.courseId);
-      return {
+      return syncCareerPathState({
         ...state,
         savedCourseIds: has
           ? state.savedCourseIds.filter((id) => id !== action.courseId)
           : [action.courseId, ...state.savedCourseIds],
-      };
+      });
     }
     case 'registerEvent': {
-      if (state.registeredEventTitles.includes(action.title)) return state;
-      return { ...state, registeredEventTitles: [action.title, ...state.registeredEventTitles] };
+      if (state.registeredEventIds.includes(action.eventId)) return state;
+      return syncCareerPathState({ ...state, registeredEventIds: [action.eventId, ...state.registeredEventIds] });
     }
     case 'unregisterEvent':
-      return { ...state, registeredEventTitles: state.registeredEventTitles.filter((t) => t !== action.title) };
+      return syncCareerPathState({
+        ...state,
+        registeredEventIds: state.registeredEventIds.filter((eventId) => eventId !== action.eventId),
+      });
     case 'addPlannedItem': {
-      if (state.plannedItems.find((i) => i.id === action.item.id)) return state;
-      return {
+      if (state.plannedItems.find((item) => item.id === action.item.id)) return state;
+      return syncCareerPathState({
         ...state,
         plannedItems: [{ ...action.item, createdAt: Date.now() }, ...state.plannedItems].slice(0, 40),
-      };
+      });
     }
     case 'removePlannedItem':
-      return { ...state, plannedItems: state.plannedItems.filter((i) => i.id !== action.id) };
+      return syncCareerPathState({ ...state, plannedItems: state.plannedItems.filter((item) => item.id !== action.id) });
     case 'setLastActiveCourseId':
-      return { ...state, lastActiveCourseId: action.courseId };
+      return syncCareerPathState({ ...state, lastActiveCourseId: action.courseId });
     case 'setCourseProgress':
-      return {
+      return syncCareerPathState({
         ...state,
         courseProgress: { ...state.courseProgress, [action.courseId]: clampPct(action.progress) },
-      };
+      });
     case 'setCourseLessonIndex':
-      return {
+      return syncCareerPathState({
         ...state,
         courseLessonIndex: {
           ...state.courseLessonIndex,
           [action.courseId]: Math.max(0, Math.floor(action.index)),
         },
-      };
+      });
     case 'setSelectedSkill':
-      return { ...state, selectedSkill: action.skill };
+      return syncCareerPathState({ ...state, selectedSkill: action.skill });
     case 'setQuizAttempt':
-      return {
+      return syncCareerPathState({
         ...state,
         quizAttempts: {
           ...state.quizAttempts,
           [action.quizId]: { score: clampPct(action.score), completedAt: Date.now() },
         },
-      };
+      });
     case 'createNote':
-      return { ...state, notes: [action.note, ...state.notes] };
+      return syncCareerPathState({ ...state, notes: [action.note, ...state.notes] });
     case 'updateNote':
-      return {
+      return syncCareerPathState({
         ...state,
-        notes: state.notes.map((n) => (n.id === action.id ? { ...n, ...action.patch } : n)),
-      };
+        notes: state.notes.map((note) => (note.id === action.id ? { ...note, ...action.patch } : note)),
+      });
     case 'deleteNote':
-      return { ...state, notes: state.notes.filter((n) => n.id !== action.id) };
+      return syncCareerPathState({ ...state, notes: state.notes.filter((note) => note.id !== action.id) });
     case 'setResumeTemplate':
-      return { ...state, resumeDraft: { ...state.resumeDraft, template: action.template } };
+      return syncCareerPathState({ ...state, resumeDraft: { ...state.resumeDraft, template: action.template } });
     case 'setResumeDraftSections':
-      return {
+      return syncCareerPathState({
         ...state,
         resumeDraft: {
           ...state.resumeDraft,
           updatedAtLabel: 'Unsaved changes',
           sections: { ...state.resumeDraft.sections, ...action.sections },
         },
-      };
+      });
     case 'resetResumeDraft':
-      return {
-        ...state,
-        resumeDraft: initialResumeDraft,
-      };
+      return syncCareerPathState({ ...state, resumeDraft: initialResumeDraft });
     case 'markResumeSaved':
-      return {
+      return syncCareerPathState({
         ...state,
         resumeDraft: { ...state.resumeDraft, updatedAtLabel: 'Just now' },
-      };
+      });
     case 'careerStart':
-      return { ...state, careerPath: { ...state.careerPath, started: true } };
+      return syncCareerPathState({ ...state, careerPath: { ...state.careerPath, started: true } });
     case 'careerToggleStep': {
-      const has = state.careerPath.completedStepIds.includes(action.stepId);
-      return {
+      const has = state.careerPath.manualCompletedStepIds.includes(action.stepId);
+      return syncCareerPathState({
         ...state,
         careerPath: {
           ...state.careerPath,
-          completedStepIds: has
-            ? state.careerPath.completedStepIds.filter((id) => id !== action.stepId)
-            : [action.stepId, ...state.careerPath.completedStepIds],
+          manualCompletedStepIds: has
+            ? state.careerPath.manualCompletedStepIds.filter((id) => id !== action.stepId)
+            : [action.stepId, ...state.careerPath.manualCompletedStepIds],
         },
-      };
+      });
+    }
+    case 'careerSetStepCompletion': {
+      const has = state.careerPath.manualCompletedStepIds.includes(action.stepId);
+      if (action.completed && has) return state;
+      if (!action.completed && !has) return state;
+      return syncCareerPathState({
+        ...state,
+        careerPath: {
+          ...state.careerPath,
+          manualCompletedStepIds: action.completed
+            ? [action.stepId, ...state.careerPath.manualCompletedStepIds]
+            : state.careerPath.manualCompletedStepIds.filter((id) => id !== action.stepId),
+        },
+      });
     }
     case 'careerReset':
-      return {
+      return syncCareerPathState({
         ...state,
-        careerPath: { ...state.careerPath, started: false, completedStepIds: [] },
-      };
+        careerPath: { ...state.careerPath, started: false, manualCompletedStepIds: [], completedStepIds: [] },
+      });
     default:
       return state;
   }
@@ -270,8 +571,8 @@ function reducer(state: LmsState, action: Action): LmsState {
 type LmsStateApi = {
   state: LmsState;
   toggleSaveCourse: (courseId: string) => void;
-  registerEvent: (title: string) => void;
-  unregisterEvent: (title: string) => void;
+  registerEvent: (eventId: string) => void;
+  unregisterEvent: (eventId: string) => void;
   addPlannedItem: (item: Omit<LmsPlannedItem, 'createdAt'>) => void;
   removePlannedItem: (id: string) => void;
   setLastActiveCourseId: (courseId: string | null) => void;
@@ -288,6 +589,7 @@ type LmsStateApi = {
   markResumeSaved: () => void;
   careerStart: () => void;
   careerToggleStep: (stepId: string) => void;
+  careerSetStepCompletion: (stepId: string, completed: boolean) => void;
   careerReset: () => void;
 };
 
@@ -299,17 +601,18 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as LmsState;
-      if (!parsed || typeof parsed !== 'object') return;
-      dispatch({ type: 'hydrate', state: { ...initialState, ...parsed } });
+      if (!raw) {
+        dispatch({ type: 'hydrate', state: hydrateState(null) });
+        return;
+      }
+      dispatch({ type: 'hydrate', state: hydrateState(JSON.parse(raw)) });
     } catch {
-      // ignore hydration errors (corrupt storage)
+      dispatch({ type: 'hydrate', state: hydrateState(null) });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (!state.isHydrated) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
@@ -318,8 +621,8 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   const toggleSaveCourse = useCallback((courseId: string) => dispatch({ type: 'toggleSaveCourse', courseId }), []);
-  const registerEvent = useCallback((title: string) => dispatch({ type: 'registerEvent', title }), []);
-  const unregisterEvent = useCallback((title: string) => dispatch({ type: 'unregisterEvent', title }), []);
+  const registerEvent = useCallback((eventId: string) => dispatch({ type: 'registerEvent', eventId }), []);
+  const unregisterEvent = useCallback((eventId: string) => dispatch({ type: 'unregisterEvent', eventId }), []);
   const addPlannedItem = useCallback(
     (item: Omit<LmsPlannedItem, 'createdAt'>) => dispatch({ type: 'addPlannedItem', item }),
     []
@@ -344,8 +647,7 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
   );
   const createNote = useCallback((note: { title: string; body: string; type: NoteType }) => {
     const id = `n-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const updated = 'Just now';
-    dispatch({ type: 'createNote', note: { id, updated, ...note } });
+    dispatch({ type: 'createNote', note: { id, updated: 'Just now', ...note } });
     return id;
   }, []);
   const updateNote = useCallback((id: string, patch: Partial<{ title: string; body: string; type: NoteType }>) => {
@@ -364,6 +666,10 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
   const markResumeSaved = useCallback(() => dispatch({ type: 'markResumeSaved' }), []);
   const careerStart = useCallback(() => dispatch({ type: 'careerStart' }), []);
   const careerToggleStep = useCallback((stepId: string) => dispatch({ type: 'careerToggleStep', stepId }), []);
+  const careerSetStepCompletion = useCallback(
+    (stepId: string, completed: boolean) => dispatch({ type: 'careerSetStepCompletion', stepId, completed }),
+    []
+  );
   const careerReset = useCallback(() => dispatch({ type: 'careerReset' }), []);
 
   const api = useMemo<LmsStateApi>(
@@ -388,6 +694,7 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
       markResumeSaved,
       careerStart,
       careerToggleStep,
+      careerSetStepCompletion,
       careerReset,
     }),
     [
@@ -396,6 +703,7 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
       registerEvent,
       unregisterEvent,
       addPlannedItem,
+      removePlannedItem,
       setLastActiveCourseId,
       setCourseProgress,
       setCourseLessonIndex,
@@ -410,6 +718,8 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
       markResumeSaved,
       careerStart,
       careerToggleStep,
+      careerSetStepCompletion,
+      careerReset,
     ]
   );
 
@@ -421,4 +731,3 @@ export function useLmsState() {
   if (!ctx) throw new Error('useLmsState must be used within LmsStateProvider');
   return ctx;
 }
-

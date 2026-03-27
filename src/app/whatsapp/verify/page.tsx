@@ -129,9 +129,13 @@ export default function VerifyOTP() {
         throw new Error(data.message || "Invalid OTP. Please try again.");
       }
 
-      // Store candidate ID in sessionStorage for future use
+      // Store candidate ID and token in sessionStorage for future use
       if (data.data.candidateId) {
         sessionStorage.setItem("candidateId", data.data.candidateId);
+      }
+      if (data.data.token) {
+        sessionStorage.setItem("token", data.data.token);
+        localStorage.setItem("token", data.data.token); // Store in localStorage too if needed globally
       }
 
       // Clear OTP-related session data
@@ -222,20 +226,7 @@ export default function VerifyOTP() {
             </div>
           )}
 
-          {/* Dev Mode OTP */}
-          {otpPreview && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-6 text-left">
-              <p className="text-[11px] font-black text-amber-700 uppercase tracking-widest mb-2">Development Mode</p>
-              <div className="flex items-center gap-3">
-                <span className="bg-white border border-amber-200 text-amber-800 font-mono font-bold text-lg px-3 py-1.5 rounded-lg shadow-sm">
-                  {otpPreview}
-                </span>
-                <p className="text-[13px] font-medium text-amber-700 leading-snug flex-1">
-                  Email delivery bypassed. Use this fallback code.
-                </p>
-              </div>
-            </div>
-          )}
+
 
           <div className="space-y-6">
             

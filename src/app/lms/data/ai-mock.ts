@@ -564,8 +564,8 @@ export const quizzesAIRecommended = {
 };
 
 export const quizzesRetryWeak = [
-  { id: 'rw1', title: 'Closures & scope', topic: 'JavaScript', questions: 12, difficulty: 'Medium' as const },
-  { id: 'rw2', title: 'React rendering cycle', topic: 'React', questions: 10, difficulty: 'Hard' as const },
+  { id: 'q1', title: 'JavaScript essentials', topic: 'JavaScript', questions: 24, difficulty: 'Easy' as const },
+  { id: 'q2', title: 'React & hooks', topic: 'React', questions: 18, difficulty: 'Medium' as const },
 ];
 
 export const quizzesMasteryByTopic = [
@@ -909,6 +909,111 @@ export const resumeAtsRisks = [
   'Missing measurable impact on 2 bullets',
   'Summary reads generic — add role-specific hook',
 ];
+
+export type CareerMissionStep = {
+  id: string;
+  label: string;
+  href?: string;
+};
+
+export const CAREER_STEP_IDS = {
+  javascriptQuiz: 'career-quiz-javascript',
+  uiCraftCourse: 'career-course-ui-craft',
+  reactQuiz: 'career-quiz-react',
+  learningNote: 'career-note-learning',
+  frontendReadinessCourse: 'career-course-frontend-readiness',
+  mockInterview: 'career-mock-interview',
+  systemDesignQuiz: 'career-quiz-system-design',
+  resumeSync: 'career-resume-sync',
+  salaryResearchNote: 'career-note-salary-research',
+  negotiationEvent: 'career-event-negotiation',
+  networkingEvent: 'career-event-networking',
+} as const;
+
+export const careerMissionRoadmap = [
+  {
+    id: 'p1',
+    title: 'Phase 1 · Foundations',
+    steps: [
+      {
+        id: CAREER_STEP_IDS.javascriptQuiz,
+        label: 'Score 70%+ on the JavaScript essentials quiz',
+        href: '/lms/quizzes/q1/attempt?skill=javascript',
+      },
+      {
+        id: CAREER_STEP_IDS.uiCraftCourse,
+        label: 'Finish the UI craft & accessibility course',
+        href: '/lms/courses/c2',
+      },
+    ] satisfies CareerMissionStep[],
+  },
+  {
+    id: 'p2',
+    title: 'Phase 2 · Depth',
+    steps: [
+      {
+        id: CAREER_STEP_IDS.reactQuiz,
+        label: 'Complete the React & hooks quiz',
+        href: '/lms/quizzes/q2/attempt?skill=react',
+      },
+      {
+        id: CAREER_STEP_IDS.learningNote,
+        label: 'Save a structured learning note',
+        href: '/lms/notes/new?type=Learning%20Notes',
+      },
+      {
+        id: CAREER_STEP_IDS.frontendReadinessCourse,
+        label: 'Finish the Frontend interview readiness course',
+        href: '/lms/courses/c1',
+      },
+    ] satisfies CareerMissionStep[],
+  },
+  {
+    id: 'p3',
+    title: 'Phase 3 · Interview ready',
+    steps: [
+      {
+        id: CAREER_STEP_IDS.mockInterview,
+        label: 'Complete 1 mock interview session',
+        href: '/lms/interview-prep/mock-session?role=Frontend%20Developer&diff=Intermediate',
+      },
+      {
+        id: CAREER_STEP_IDS.systemDesignQuiz,
+        label: 'Score 60%+ on the system design quiz',
+        href: '/lms/quizzes/q6/attempt?skill=system',
+      },
+      {
+        id: CAREER_STEP_IDS.resumeSync,
+        label: 'Save your resume and sync it to the career path',
+        href: '/lms/resume-builder/editor',
+      },
+    ] satisfies CareerMissionStep[],
+  },
+  {
+    id: 'p4',
+    title: 'Phase 4 · Offer',
+    steps: [
+      {
+        id: CAREER_STEP_IDS.salaryResearchNote,
+        label: 'Create a salary research note',
+        href: '/lms/notes/new?type=Salary%20Research',
+      },
+      {
+        id: CAREER_STEP_IDS.negotiationEvent,
+        label: 'Register for the negotiation office hours session',
+        href: '/lms/events/evt-103',
+      },
+      {
+        id: CAREER_STEP_IDS.networkingEvent,
+        label: 'Register for a networking event',
+        href: '/lms/events/evt-102',
+      },
+    ] satisfies CareerMissionStep[],
+  },
+] as const;
+
+export const careerMissionSteps = careerMissionRoadmap.flatMap((phase) => phase.steps);
+export const careerMissionStepIds = careerMissionSteps.map((step) => step.id);
 
 export const careerMission = {
   headline: 'Mission: Become Frontend Developer',

@@ -90,7 +90,15 @@ export default function QuestionBankCategoryPage() {
               <button
                 type="button"
                 onClick={() => {
-                  addPlannedItem({ id: `ip:qb:${q.id}`, type: 'topic', label: `Review: ${q.category} bank`, href: `/lms/interview-prep/question-bank/${encodeURIComponent(categoryDecoded)}` });
+                  addPlannedItem({ 
+                    id: `ip:qb:${q.id}`, 
+                    type: 'topic', 
+                    label: `Review: ${q.category} bank`, 
+                    href: `/lms/interview-prep/question-bank/${encodeURIComponent(categoryDecoded)}`,
+                    sourceModule: 'interview-prep',
+                    sourceLabel: 'Question Bank',
+                    context: `Reviewing ${q.category} questions to improve depth and performance in technical rounds.`
+                  });
                   toast.push({ title: 'Question Saved', message: 'Added to your study plan.', tone: 'info' });
                 }}
                 className="text-sm font-bold text-[#28A8E1] hover:text-[#208bc0] hover:underline"

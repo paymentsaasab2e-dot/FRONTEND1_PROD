@@ -32,7 +32,7 @@ const NOTE_TYPES: NoteType[] = ['Interview Prep', 'Learning Notes', 'Company Res
 export default function LmsNotesPage() {
   const router = useRouter();
   const { state } = useLmsState();
-  const rawNotes = LMS_NOTES_SEED_ENABLED ? state.notes : [];
+  const rawNotes = useMemo(() => (LMS_NOTES_SEED_ENABLED ? state.notes : []), [state.notes]);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'All' | NoteType>('All');
@@ -49,8 +49,6 @@ export default function LmsNotesPage() {
   }, [rawNotes, searchQuery, activeTab]);
 
   const hasAnyNotes = rawNotes.length > 0;
-  const isFiltering = searchQuery.length > 0 || activeTab !== 'All';
-
   const handleAIChipClick = (action: { id: string, label: string }) => {
      let title = 'AI Generated Draft';
      let type: NoteType = 'Learning Notes';
@@ -66,6 +64,21 @@ export default function LmsNotesPage() {
          title = 'Generated mock questions';
          type = 'Interview Prep';
          body += 'Question 1: Explain the tradeoff between X and Y?';
+     } else if (action.id === 'keys') {
+         title = 'Key concepts extraction';
+         body += 'Concept 1:\\n- Why it matters\\n- Common misconception\\n\\nConcept 2:\\n- Signal to remember\\n- Interview angle';
+     } else if (action.id === 'interview') {
+         title = 'Interview answer bank';
+         type = 'Interview Prep';
+         body += 'Question: Tell me about a time you improved performance.\\nAnswer outline:\\n- Situation\\n- Task\\n- Action\\n- Result';
+     } else if (action.id === 'mockq') {
+         title = 'Mock interview question set';
+         type = 'Interview Prep';
+         body += '1. Walk through the trade-offs behind your last frontend architecture decision.\\n2. Explain how you debugged a rendering issue under pressure.\\n3. What would you improve if you had one more sprint?';
+     } else if (action.id === 'eli5') {
+         title = 'Explain it like an interviewer';
+         type = 'Interview Prep';
+         body += 'Topic:\\nPlain-English explanation:\\nAnalogy:\\nFollow-up question I should expect:';
      }
      
      router.push(`/lms/notes/new?title=${encodeURIComponent(title)}&type=${encodeURIComponent(type)}&body=${encodeURIComponent(body)}`);

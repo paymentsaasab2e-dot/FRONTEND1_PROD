@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, CheckCircle2, Lock, NotebookPen, PlayCircle } from 'lucide-react';
 import type { LmsCourseModule, LmsLessonType } from '../../../../data/ai-mock';
@@ -42,12 +42,11 @@ type Props = {
   lessonDetails: LessonDetailsMap;
 };
 
-export function LessonPlayerClient({ course, courseMeta, modules, flatLessons, initialIndex, mode, lessonDetails }: Props) {
+export function LessonPlayerClient({ course, courseMeta, flatLessons, initialIndex, mode, lessonDetails }: Props) {
   const router = useRouter();
   const toast = useLmsToast();
   const { state, setCourseLessonIndex, setCourseProgress, setLastActiveCourseId } = useLmsState();
 
-  const [notes, setNotes] = useState('');
   const total = flatLessons.length;
   const persistedIndex = Math.max(0, Math.min(total - 1, state.courseLessonIndex[course.id] ?? initialIndex));
   const activeIndex = initialIndex;
@@ -55,6 +54,14 @@ export function LessonPlayerClient({ course, courseMeta, modules, flatLessons, i
   const pct = state.courseProgress[course.id] ?? Math.round((persistedIndex / Math.max(1, total)) * 100);
   const completed = pct >= 100;
   const key = `${course.id}:${current.lessonId}`;
+  const noteStorageKey = `lmsCourseNote:${course.id}:${current.lessonId}`;
+  const [notes, setNotes] = useState(() => {
+    try {
+      return sessionStorage.getItem(noteStorageKey) ?? '';
+    } catch {
+      return '';
+    }
+  });
   const detail = lessonDetails[key] ?? {
     type: 'reading' as LmsLessonType,
     intro: `This lesson content is a frontend-only placeholder for "${current.lessonTitle}".`,
@@ -66,17 +73,12 @@ export function LessonPlayerClient({ course, courseMeta, modules, flatLessons, i
   useEffect(() => {
     setLastActiveCourseId(course.id);
     setCourseLessonIndex(course.id, activeIndex);
-    try {
-      const raw = sessionStorage.getItem(`lmsCourseNote:${course.id}:${current.lessonId}`);
-      setNotes(raw ?? '');
-    } catch {
-      setNotes('');
-    }
-  }, [activeIndex, course.id, current.lessonId, setCourseLessonIndex, setLastActiveCourseId]);
+  }, [activeIndex, course.id, setCourseLessonIndex, setLastActiveCourseId]);
 
   const isLocked = (idx: number) => mode !== 'review' && idx > persistedIndex;
   const isCompleted = (idx: number) => idx < persistedIndex;
   const isCurrent = (idx: number) => idx === activeIndex;
+  const nextLessonLocked = activeIndex < total - 1 && isLocked(activeIndex + 1);
 
   const goLesson = (idx: number) => {
     const clamped = Math.max(0, Math.min(total - 1, idx));
@@ -89,6 +91,7 @@ export function LessonPlayerClient({ course, courseMeta, modules, flatLessons, i
   };
 
   const markComplete = () => {
+    if (mode === 'review') return;
     const next = Math.min(total, Math.max(persistedIndex, activeIndex + 1));
     setCourseLessonIndex(course.id, next);
     const nextPct = Math.round((next / Math.max(1, total)) * 100);
@@ -102,7 +105,7 @@ export function LessonPlayerClient({ course, courseMeta, modules, flatLessons, i
 
   const saveNotes = () => {
     try {
-      sessionStorage.setItem(`lmsCourseNote:${course.id}:${current.lessonId}`, notes);
+      sessionStorage.setItem(noteStorageKey, notes);
       toast.push({ title: 'Notes saved', message: 'Saved locally in this browser session.', tone: 'success' });
     } catch {
       toast.push({ title: 'Could not save notes', message: 'Storage unavailable in this context.', tone: 'warning' });
@@ -150,9 +153,11 @@ export function LessonPlayerClient({ course, courseMeta, modules, flatLessons, i
               <button
                 type="button"
                 onClick={() => goLesson(activeIndex + 1)}
-                disabled={activeIndex >= total - 1}
+                disabled={activeIndex >= total - 1 || nextLessonLocked}
                 className={`rounded-xl px-4 py-2.5 text-sm font-semibold border ${
-                  activeIndex >= total - 1 ? 'border-gray-200 text-gray-400 bg-white cursor-not-allowed' : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'
+                  activeIndex >= total - 1 || nextLessonLocked
+                    ? 'border-gray-200 text-gray-400 bg-white cursor-not-allowed'
+                    : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-50'
                 }`}
               >
                 Next lesson
@@ -160,14 +165,21 @@ export function LessonPlayerClient({ course, courseMeta, modules, flatLessons, i
               <button
                 type="button"
                 onClick={markComplete}
-                disabled={completed}
+                disabled={completed || mode === 'review'}
                 className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${
-                  completed ? 'bg-[#28A8E1]/40 text-white cursor-not-allowed' : 'bg-[#28A8E1] text-white hover:opacity-95'
+                  completed || mode === 'review'
+                    ? 'bg-[#28A8E1]/40 text-white cursor-not-allowed'
+                    : 'bg-[#28A8E1] text-white hover:opacity-95'
                 }`}
               >
-                {completed ? 'Completed' : 'Mark lesson complete'}
+                {mode === 'review' ? 'Read-only in review mode' : completed ? 'Completed' : 'Mark lesson complete'}
               </button>
             </div>
+            {nextLessonLocked ? (
+              <p className="mt-3 text-xs font-medium text-amber-700">
+                Complete this lesson to unlock the next one.
+              </p>
+            ) : null}
 
             <div className="mt-5 pt-4 border-t border-gray-100">
               <p className="text-sm font-bold text-gray-900 mb-2">Curriculum</p>

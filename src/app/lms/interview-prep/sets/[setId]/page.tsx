@@ -149,7 +149,15 @@ export default function QuestionSetWorkspace() {
             type="button"
             className="text-sm font-bold text-gray-500 hover:text-gray-900"
             onClick={() => {
-              addPlannedItem({ id: `ip:q:${q.id}`, type: 'topic', label: `Review question: ${q.prompt.slice(0, 30)}...`, href: `/lms/interview-prep/sets/${set.id}` });
+              addPlannedItem({ 
+                id: `ip:q:${q.id}`, 
+                type: 'topic', 
+                label: `Review question: ${q.prompt.slice(0, 30)}...`, 
+                href: `/lms/interview-prep/sets/${set.id}`,
+                sourceModule: 'interview-prep',
+                sourceLabel: 'Question Drill',
+                context: `Specific interview question from the "${set.kind}" set. Focus on: ${q.rubric.substring(0, 50)}...`
+              });
               toast.push({ title: 'Added to plan', message: 'Saved question for review.', tone: 'success' });
             }}
           >

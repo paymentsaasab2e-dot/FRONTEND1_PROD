@@ -3,20 +3,29 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import { LMS_CARD_CLASS, LMS_PAGE_SUBTITLE } from '../../constants';
 import { useLmsState } from '../../state/LmsStateProvider';
 import { useLmsToast } from '../../components/ux/LmsToastProvider';
 import type { NoteType } from '../../data/ai-mock';
 import { LmsCtaButton } from '../../components/ux/LmsCtaButton';
+import { LmsSkeleton } from '../../components/states/LmsSkeleton';
 
 const NOTE_TYPES: NoteType[] = ['Interview Prep', 'Learning Notes', 'Company Research', 'Salary Research'];
 
-export default function LmsNewNotePage() {
+function LmsNewNotePageFallback() {
+  return (
+    <div className={LMS_CARD_CLASS}>
+      <LmsSkeleton lines={4} />
+    </div>
+  );
+}
+
+function LmsNewNotePageContent() {
   const router = useRouter();
   const search = useSearchParams();
   const toast = useLmsToast();
-  const { createNote, careerToggleStep } = useLmsState();
+  const { createNote } = useLmsState();
 
   const queryTitle = search.get('title');
   const queryType = search.get('type');
@@ -83,7 +92,6 @@ export default function LmsNewNotePage() {
             leftIcon={<Plus className="h-4 w-4" strokeWidth={2} />}
             onClick={() => {
               const id = createNote({ title: title.trim(), body: body.trim(), type });
-              careerToggleStep('notes');
               toast.push({ title: 'Note created', message: title.trim(), tone: 'success' });
               router.push(`/lms/notes/${id}`);
             }}
@@ -96,6 +104,14 @@ export default function LmsNewNotePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LmsNewNotePage() {
+  return (
+    <Suspense fallback={<LmsNewNotePageFallback />}>
+      <LmsNewNotePageContent />
+    </Suspense>
   );
 }
 

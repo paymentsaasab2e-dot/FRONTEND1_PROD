@@ -1,36 +1,46 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo, type SVGProps } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Clock, Save, SkipForward, Play, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Clock, SkipForward, Play, AlertCircle } from 'lucide-react';
 import { LMS_CARD_CLASS } from '@/app/lms/constants';
+import { CAREER_STEP_IDS } from '@/app/lms/data/ai-mock';
+import { LmsSkeleton } from '@/app/lms/components/states/LmsSkeleton';
 import { generateMockQuestions } from '@/modules/interview-prep/data/mockInterviewData';
 import { useInterviewPrep } from '@/modules/interview-prep/hooks/useInterviewPrep';
 import { useLmsToast } from '@/app/lms/components/ux/LmsToastProvider';
+import { useLmsState } from '@/app/lms/state/LmsStateProvider';
 import type { MockQuestion, MockSessionResult } from '@/modules/interview-prep/types/interview.types';
 
-export default function MockInterviewSession() {
+function MockInterviewSessionFallback() {
+  return (
+    <div className={LMS_CARD_CLASS}>
+      <LmsSkeleton lines={5} />
+    </div>
+  );
+}
+
+function MockInterviewSessionContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const role = sp.get('role') ?? 'Unknown Role';
   const diff = sp.get('diff') ?? 'Unknown Diff';
   const toast = useLmsToast();
   const { saveMockSession } = useInterviewPrep();
+  const { careerSetStepCompletion } = useLmsState();
 
-  const [questions, setQuestions] = useState<MockQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [time, setTime] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
-  useEffect(() => {
-    // We just assemble a fake mixed test
+  const questions = useMemo<MockQuestion[]>(() => {
     const q1 = generateMockQuestions('system');
     const q2 = generateMockQuestions('technical');
     const q3 = generateMockQuestions('hr');
-    setQuestions([q1[0], q2[0], q3[0], q2[1]].filter(Boolean));
+    return [q1[0], q2[0], q3[0], q2[1]].filter(Boolean);
   }, []);
 
   useEffect(() => {
@@ -42,29 +52,30 @@ export default function MockInterviewSession() {
   const q = questions[index];
 
   const handleNext = () => {
-    if (q) {
-      setAnswers(prev => ({ ...prev, [q.id]: currentAnswer }));
-    }
-    setCurrentAnswer(answers[questions[index + 1]?.id] || '');
+    const nextAnswers = q ? { ...answers, [q.id]: currentAnswer } : answers;
+    setAnswers(nextAnswers);
     if (index >= questions.length - 1) {
-      finishSession();
+      finishSession(nextAnswers);
     } else {
+      const nextQuestion = questions[index + 1];
       setIndex(i => i + 1);
+      setCurrentAnswer(nextQuestion ? nextAnswers[nextQuestion.id] || '' : '');
     }
   };
 
-  const finishSession = () => {
+  const finishSession = (finalAnswers: Record<string, string>) => {
     setIsFinished(true);
     const result: MockSessionResult = {
       id: `session-${Date.now()}`,
       config: { difficulty: diff, role },
-      answers,
+      answers: finalAnswers,
       createdAt: Date.now(),
       strengths: ['Clear pacing', 'Good technical buzzwords'],
       improvements: ['Give more concrete examples', 'Avoid rambling on behavioral'],
       gaps: ['Scalability patterns'],
     };
     saveMockSession(result);
+    careerSetStepCompletion(CAREER_STEP_IDS.mockInterview, true);
     toast.push({ title: 'Session Saved', message: 'Mock interview completed successfully.', tone: 'success' });
   };
 
@@ -207,7 +218,15 @@ export default function MockInterviewSession() {
   );
 }
 
-function CheckCircle2(props: any) {
+export default function MockInterviewSession() {
+  return (
+    <Suspense fallback={<MockInterviewSessionFallback />}>
+      <MockInterviewSessionContent />
+    </Suspense>
+  );
+}
+
+function CheckCircle2(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}

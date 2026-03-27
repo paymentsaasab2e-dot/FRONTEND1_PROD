@@ -58,7 +58,14 @@ export default function InterviewPrepModulePage() {
             type="button"
             className="flex-1 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 transition-all duration-200 hover:bg-gray-50 hover:shadow-sm"
             onClick={() => {
-              addPlannedItem({ id: `ip:set:${generatedSet.kind}`, type: 'topic', label: `Practice: ${generatedSet.kind}`, href: `/lms/interview-prep/sets/${generatedSet.id}` });
+              addPlannedItem({ 
+                id: `ip:set:${generatedSet.kind}`, 
+                type: 'topic', 
+                label: `Practice: ${generatedSet.kind}`, 
+                href: `/lms/interview-prep/sets/${generatedSet.id}`,
+                sourceModule: 'interview-prep',
+                sourceLabel: 'Question Bank'
+              });
               toast.push({ title: 'Added to plan', message: 'Saved this set for later practice.', tone: 'success' });
               overlay.close();
             }}
@@ -162,7 +169,15 @@ export default function InterviewPrepModulePage() {
         onAddToPlan={(topicIds) => {
           const tArr = onAddToPlan(topicIds);
           tArr.forEach(t => {
-             addPlannedItem({ id: `ip:rev:${t}-${Date.now()}`, type: 'topic', label: t, href: '/lms/career-path' });
+             addPlannedItem({ 
+               id: `ip:rev:${t}-${Date.now()}`, 
+               type: 'topic', 
+               label: t, 
+               href: '/lms/career-path',
+               sourceModule: 'interview-prep',
+               sourceLabel: 'Interview Revision',
+               context: 'Recommended revision topic to strengthen your conceptual knowledge and interview performance.'
+             });
           });
           toast.push({ title: 'Added to plan', message: tArr.length > 1 ? `Added ${tArr.length} items` : tArr[0], tone: 'success' });
         }}

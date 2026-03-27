@@ -2,22 +2,31 @@
 
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { ArrowLeft, Pencil, Save, Trash2 } from 'lucide-react';
 import { LMS_CARD_CLASS, LMS_PAGE_SUBTITLE } from '../../constants';
 import { useLmsState } from '../../state/LmsStateProvider';
 import { LmsCtaButton } from '../../components/ux/LmsCtaButton';
 import { useLmsToast } from '../../components/ux/LmsToastProvider';
 import type { NoteType } from '../../data/ai-mock';
+import { LmsSkeleton } from '../../components/states/LmsSkeleton';
 
 const NOTE_TYPES: NoteType[] = ['Interview Prep', 'Learning Notes', 'Company Research', 'Salary Research'];
 
-export default function LmsNoteDetailPage() {
+function LmsNoteDetailPageFallback() {
+  return (
+    <div className={LMS_CARD_CLASS}>
+      <LmsSkeleton lines={4} />
+    </div>
+  );
+}
+
+function LmsNoteDetailPageContent() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const search = useSearchParams();
   const toast = useLmsToast();
-  const { state, updateNote, deleteNote, careerToggleStep } = useLmsState();
+  const { state, updateNote, deleteNote } = useLmsState();
 
   const note = useMemo(() => state.notes.find((n) => n.id === params.id), [params.id, state.notes]);
   const editMode = search.get('edit') === '1';
@@ -94,7 +103,6 @@ export default function LmsNoteDetailPage() {
                   leftIcon={<Save className="h-4 w-4" strokeWidth={2} />}
                   onClick={() => {
                     updateNote(note.id, { title: title.trim() || note.title, body, type });
-                    careerToggleStep('notes');
                     toast.push({ title: 'Saved', message: 'Note updated natively.', tone: 'success' });
                     router.push(`/lms/notes/${note.id}`);
                   }}
@@ -157,5 +165,13 @@ export default function LmsNoteDetailPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function LmsNoteDetailPage() {
+  return (
+    <Suspense fallback={<LmsNoteDetailPageFallback />}>
+      <LmsNoteDetailPageContent />
+    </Suspense>
   );
 }

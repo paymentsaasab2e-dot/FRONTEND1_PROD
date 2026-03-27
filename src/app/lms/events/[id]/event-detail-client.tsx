@@ -10,7 +10,7 @@ export function EventDetailClient({ eventId, title, status }: { eventId: string;
   const overlay = useLmsOverlay();
   const toast = useLmsToast();
 
-  const isRegistered = state.registeredEventTitles.includes(eventId);
+  const isRegistered = state.registeredEventIds.includes(eventId);
   
   const isPlanned = state.plannedItems.some(p => p.id === `evt-${eventId}`);
 
@@ -57,7 +57,9 @@ export function EventDetailClient({ eventId, title, status }: { eventId: string;
         id: `evt-${eventId}`,
         type: 'event',
         label: title,
-        href: `/lms/events/${eventId}`
+        href: `/lms/events/${eventId}`,
+        sourceModule: 'events',
+        sourceLabel: 'LMS Events'
     });
     toast.push({ title: 'Added to plan', message: 'Event marked in Career Path plan.', tone: 'success' });
   };

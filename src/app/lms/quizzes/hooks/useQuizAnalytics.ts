@@ -13,6 +13,7 @@ export function useQuizAnalytics() {
     let totalScore = 0;
     let mostRecentScore = 0;
     let mostRecentDate = 0;
+    let mostRecentQuizId: string | null = null;
     const scoresByTopic: Record<string, number[]> = {};
 
     for (const [quizId, attempt] of attemptEntries) {
@@ -20,6 +21,7 @@ export function useQuizAnalytics() {
       if (attempt.completedAt > mostRecentDate) {
         mostRecentDate = attempt.completedAt;
         mostRecentScore = attempt.score;
+        mostRecentQuizId = quizId;
       }
       const quiz = lmsQuizBank[quizId];
       if (quiz) {
@@ -61,6 +63,7 @@ export function useQuizAnalytics() {
       avgScore,
       recentScore: hasAttempts ? mostRecentScore : null,
       recentScoreStr,
+      recentQuizId: hasAttempts ? mostRecentQuizId : null,
       topicAverages,
       weakestTopic,
       lowestScore,

@@ -4,8 +4,9 @@ import { LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../../constants';
 import { eventsWithAI } from '../../data/ai-mock';
 import { EventDetailClient } from './event-detail-client';
 
-export default function LmsEventDetailPage({ params }: { params: { id: string } }) {
-  const event = eventsWithAI.find((e) => e.id === params.id);
+export default async function LmsEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const event = eventsWithAI.find((e) => e.id === id);
   
   if (!event) {
     return (
@@ -17,7 +18,7 @@ export default function LmsEventDetailPage({ params }: { params: { id: string } 
           <CalendarDays className="h-10 w-10 text-gray-300 mb-4" strokeWidth={1.5} />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Event Not Found</h2>
           <p className="text-gray-500 font-medium text-sm max-w-sm text-center">
-            The event you're looking for was not found or has been removed from the catalog.
+            The event you&apos;re looking for was not found or has been removed from the catalog.
           </p>
           <Link href="/lms/events" className="mt-6 rounded-xl bg-[#28A8E1] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#208bc0]">
             Browse Events

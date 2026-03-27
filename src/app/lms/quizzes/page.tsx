@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   ClipboardList,
   HelpCircle,
@@ -22,11 +23,11 @@ import {
   quizzesAIExplanation,
   quizzesSkillHeatmap,
   quizzesLastSessionFeedback,
-  quizzesEngagement,
 } from '../data/ai-mock';
 import { lmsQuizBank, lmsQuizIdForSkill } from '../data/ai-mock';
 import { useQuizAnalytics } from './hooks/useQuizAnalytics';
 import { useLmsState } from '../state/LmsStateProvider';
+import { LmsSkeleton } from '../components/states/LmsSkeleton';
 
 function difficultyBadge(d: 'Easy' | 'Medium' | 'Hard') {
   const map = {
@@ -125,14 +126,17 @@ function QuizCardRow({
   );
 }
 
-export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
-  const recMin = quizzesAIRecommended.estMinutes;
-  const skill =
-    typeof searchParams?.skill === 'string'
-      ? searchParams.skill
-      : Array.isArray(searchParams?.skill)
-        ? searchParams?.skill?.[0]
-        : null;
+function LmsQuizzesPageFallback() {
+  return (
+    <div className={LMS_CARD_CLASS}>
+      <LmsSkeleton lines={5} />
+    </div>
+  );
+}
+
+function LmsQuizzesPageContent() {
+  const searchParams = useSearchParams();
+  const skill = searchParams.get('skill');
 
   const { state } = useLmsState();
   const analytics = useQuizAnalytics();
@@ -146,18 +150,36 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
     });
   }, [skill]);
 
-  // Derive Recommended logic
+  // Derive Recommended logic securely
+  let recQuizId = 'q1'; // Safe valid default
+  
+  if (analytics.hasAttempts && analytics.weakestTopic) {
+    const match = Object.keys(lmsQuizBank).find(k => lmsQuizBank[k].skill === analytics.weakestTopic);
+    if (match) recQuizId = match;
+  } else {
+    // If no attempts, map the AI mock's default topic to a real quiz
+    const defaultTopicLC = quizzesAIRecommended.topic.toLowerCase();
+    const fallbackMatch = Object.keys(lmsQuizBank).find(k => defaultTopicLC.includes(lmsQuizBank[k].skill));
+    if (fallbackMatch) recQuizId = fallbackMatch;
+  }
+
+  const recQuizCatalog = quizzesCatalog.find(q => q.id === recQuizId);
+
   const recContent = {
-    title: analytics.hasAttempts && analytics.weakestTopic ? `Drill: ${analytics.weakestTopic.toUpperCase()}` : quizzesAIRecommended.title,
+    title: analytics.hasAttempts && analytics.weakestTopic && recQuizCatalog ? `Drill: ${recQuizCatalog.title}` : quizzesAIRecommended.title,
     topic: analytics.hasAttempts && analytics.weakestTopic ? analytics.weakestTopic : quizzesAIRecommended.topic,
     blurb: analytics.hasAttempts && analytics.weakestTopic ? `Your recent scores around ${analytics.weakestTopic} suggest a review.` : quizzesAIRecommended.blurb,
     why: analytics.hasAttempts && analytics.weakestTopic ? [`Score is currently ${analytics.lowestScore}%`, `Focusing here will improve overall readiness.`] : quizzesAIRecommended.whyThisQuiz,
-    diff: quizzesAIRecommended.difficulty,
-    questions: quizzesAIRecommended.questions,
+    diff: recQuizCatalog?.difficulty || quizzesAIRecommended.difficulty,
+    questions: recQuizCatalog?.questions || quizzesAIRecommended.questions,
+    id: recQuizId
   };
 
   // Derive retry weaknesses
-  const retryCards = (analytics.hasAttempts && analytics.retryQuizzes.length > 0) ? analytics.retryQuizzes : quizzesRetryWeak;
+  const retryCards = useMemo(() => {
+    const candidates = analytics.hasAttempts && analytics.retryQuizzes.length > 0 ? analytics.retryQuizzes : quizzesRetryWeak;
+    return candidates.filter((quiz) => Boolean(lmsQuizBank[quiz.id]));
+  }, [analytics.hasAttempts, analytics.retryQuizzes]);
 
   return (
     <div className="space-y-10">
@@ -211,10 +233,10 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
                 </span>
               </div>
               <Link
-                href={`/lms/quizzes/${lmsQuizIdForSkill(skill || recContent.topic)}/attempt${skill ? `?skill=${encodeURIComponent(skill)}` : ''}`}
+                href={`/lms/quizzes/${recContent.id}/attempt${skill ? `?skill=${encodeURIComponent(skill)}` : ''}`}
                 className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
               >
-                {`Start practice (${recMin} min)`}
+                {`Start practice (${practiceMinutes(recContent.diff)} min)`}
               </Link>
             </div>
           </div>
@@ -255,7 +277,9 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
                     {actualPct}%
                   </span>
                 </div>
-                <p className="mt-2 text-xs font-normal text-gray-500 line-clamp-2">{row.hoverSuggestion}</p>
+                <p className="mt-2 text-xs font-normal text-gray-500 line-clamp-2">
+                  {analytics.hasAttempts ? `Suggestion: Practice ${row.topic} essentials` : row.hoverSuggestion}
+                </p>
               </Link>
             );
           })}
@@ -267,31 +291,38 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
         <p className="text-sm text-gray-500 -mt-2 font-normal">
           Pulled from your last attempts & local history.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {retryCards.map((q) => (
-            <div key={q.id} className={LMS_CARD_INTERACTIVE}>
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-100">
-                  <RotateCcw className="h-5 w-5" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <h2 className="text-base font-bold text-gray-900">{q.title}</h2>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{q.topic}</p>
-                  <p className="text-sm text-gray-500">{q.questions} questions</p>
-                  {difficultyBadge(q.difficulty)}
-                  <Link
-                    href={`/lms/quizzes/${q.id}/attempt?skill=${encodeURIComponent(
-                      q.topic.toLowerCase().includes('react') ? 'react' : q.topic.toLowerCase().includes('system') ? 'system' : 'javascript'
-                    )}`}
-                    className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-all duration-200 hover:bg-gray-50 hover:shadow-md active:scale-[0.98]"
-                  >
-                    {`Start practice (${practiceMinutes(q.difficulty)} min)`}
-                  </Link>
+        {retryCards.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {retryCards.map((q) => (
+              <div key={q.id} className={LMS_CARD_INTERACTIVE}>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-100">
+                    <RotateCcw className="h-5 w-5" strokeWidth={2} />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <h2 className="text-base font-bold text-gray-900">{q.title}</h2>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{q.topic}</p>
+                    <p className="text-sm text-gray-500">{q.questions} questions</p>
+                    {difficultyBadge(q.difficulty)}
+                    <Link
+                      href={`/lms/quizzes/${q.id}/attempt${skill ? `?skill=${encodeURIComponent(skill)}` : ''}`}
+                      className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition-all duration-200 hover:bg-gray-50 hover:shadow-md active:scale-[0.98]"
+                    >
+                      {`Start practice (${practiceMinutes(q.difficulty)} min)`}
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`${LMS_CARD_CLASS} border-dashed border-gray-200 bg-gray-50/60`}>
+            <p className="text-sm font-bold text-gray-900">No retry quiz is ready yet</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Complete at least one quiz and we will surface a valid follow-up practice set here.
+            </p>
+          </div>
+        )}
       </section>
 
       {analytics.recentScore !== null && (
@@ -323,12 +354,13 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
           {quizzesMasteryByTopic.map((m) => {
             const actualPct = analytics.topicAverages[m.topic.toLowerCase()] !== undefined ? analytics.topicAverages[m.topic.toLowerCase()] : m.pct;
             return (
-              <div
+              <Link
                 key={m.topic}
-                className={`${LMS_CARD_CLASS} transition-all duration-200 hover:shadow-md border-violet-50/80`}
-                title={`Drill ${m.topic} quizzes linked from career path & notes.`}
+                href={`/lms/quizzes?skill=${m.topic.toLowerCase()}`}
+                className={`${LMS_CARD_CLASS} transition-all duration-200 hover:shadow-md border-violet-50/80 block group cursor-pointer`}
+                title={`Filter practice to ${m.topic}`}
               >
-                <div className="flex items-center gap-2 text-gray-900">
+                <div className="flex items-center gap-2 text-gray-900 group-hover:text-[#28A8E1] transition-colors">
                   <TrendingUp className="h-4 w-4 text-[#28A8E1]" strokeWidth={2} />
                   <span className="text-sm font-bold">{m.topic}</span>
                 </div>
@@ -338,8 +370,11 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
                     style={{ width: `${actualPct}%` }}
                   />
                 </div>
-                <p className="mt-2 text-sm font-bold text-[#28A8E1]">{actualPct}%</p>
-              </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-sm font-bold text-[#28A8E1]">{actualPct}%</p>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">Focus &rarr;</span>
+                </div>
+              </Link>
             );
           })}
         </div>
@@ -356,10 +391,20 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
             </div>
             <div>
               <p className="text-sm font-bold text-gray-900">Latest score</p>
-              <p className="text-sm font-normal text-gray-500">{analytics.hasAttempts ? `Averaging ${analytics.avgScore}% globally` : quizzesRecentPerformance.label}</p>
+              <p className="text-sm font-normal text-gray-500">{analytics.hasAttempts && analytics.lastAttemptDate ? `Last quiz · ${new Date(analytics.lastAttemptDate).toLocaleDateString()}` : quizzesRecentPerformance.label}</p>
             </div>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{analytics.recentScoreStr}{analytics.hasAttempts ? '%' : ''}</p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <p className="text-3xl font-bold text-gray-900 text-right">{analytics.recentScoreStr}{analytics.hasAttempts ? '%' : ''}</p>
+            {analytics.recentQuizId && (
+              <Link
+                href={`/lms/quizzes/${analytics.recentQuizId}/result`}
+                className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 transition-all active:scale-[0.98]"
+              >
+                Review Result
+              </Link>
+            )}
+          </div>
         </div>
       </section>
 
@@ -369,7 +414,7 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
           title="AI study tip"
           recommendation={analytics.weakestTopic ? `Since your score is lowest in ${analytics.weakestTopic}, drilling related courses is highly recommended.` : quizzesAIExplanation}
           ctaLabel="View suggested lessons"
-          ctaHref="/lms/courses"
+          ctaHref={`/lms/courses${analytics.weakestTopic ? `?focus=${encodeURIComponent(analytics.weakestTopic)}` : ''}`}
         />
       </section>
 
@@ -398,5 +443,13 @@ export default function LmsQuizzesPage({ searchParams }: { searchParams?: Record
         </div>
       </section>
     </div>
+  );
+}
+
+export default function LmsQuizzesPage() {
+  return (
+    <Suspense fallback={<LmsQuizzesPageFallback />}>
+      <LmsQuizzesPageContent />
+    </Suspense>
   );
 }

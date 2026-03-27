@@ -125,6 +125,63 @@ export const mockCompanyResearch: Record<string, CompanyInfo> = {
       }
     ],
     revisionTips: ['Study Contenteditable quirks', 'Revise React performance profiling', 'Understand local-first data models']
+  },
+  figma: {
+    slug: 'figma',
+    name: 'Figma',
+    overview: 'Collaborative design platform known for multiplayer editing and design-system workflows.',
+    culture: ['Craft with speed', 'Cross-functional product thinking', 'Strong user empathy'],
+    productTopics: ['Realtime collaboration', 'Canvas rendering', 'Design systems', 'Plugin ecosystems'],
+    sampleQuestions: [
+      {
+        id: 'c3',
+        category: 'technical',
+        prompt: 'How would you keep a large collaborative design canvas responsive while many users are editing at once?',
+        hint: 'Talk through rendering strategy, optimistic updates, and local-first constraints.',
+        followUp: ['What would you virtualize first?', 'How would you debug cross-client desync?'],
+        difficulty: 'Advanced',
+        rubric: 'Looking for UI performance depth plus multiplayer systems awareness.',
+      },
+    ],
+    revisionTips: ['Practice canvas performance trade-offs', 'Review realtime state synchronization', 'Prepare examples of design-system ownership'],
+  },
+  linear: {
+    slug: 'linear',
+    name: 'Linear',
+    overview: 'Issue tracking product focused on speed, polish, and high-signal product execution.',
+    culture: ['Polish matters', 'Thoughtful product trade-offs', 'Fast, focused execution'],
+    productTopics: ['Perceived performance', 'Keyboard-first workflows', 'List virtualization', 'Offline-friendly UX'],
+    sampleQuestions: [
+      {
+        id: 'c4',
+        category: 'behavioral',
+        prompt: 'Tell me about a time you made a product feel faster without changing the backend response time.',
+        hint: 'Focus on UX framing, loading states, optimistic UI, and instrumentation.',
+        followUp: ['How did you measure the impact?', 'What trade-offs did you make?'],
+        difficulty: 'Intermediate',
+        rubric: 'Looking for product taste, performance intuition, and measurable outcomes.',
+      },
+    ],
+    revisionTips: ['Study perceived-performance patterns', 'Revise keyboard accessibility', 'Prepare stories about shipping polished details'],
+  },
+  vercel: {
+    slug: 'vercel',
+    name: 'Vercel',
+    overview: 'Frontend cloud platform centered on developer experience, performance, and modern web tooling.',
+    culture: ['Developer-first clarity', 'High leverage tooling', 'Strong performance standards'],
+    productTopics: ['Edge rendering', 'Build pipelines', 'Observability for frontend teams', 'Performance budgets'],
+    sampleQuestions: [
+      {
+        id: 'c5',
+        category: 'system',
+        prompt: 'How would you explain the trade-offs between edge rendering and server rendering for a high-traffic marketing site?',
+        hint: 'Cover caching, personalization, cold starts, and debugging complexity.',
+        followUp: ['When would static generation still win?', 'How would you monitor regressions?'],
+        difficulty: 'Advanced',
+        rubric: 'Looking for platform trade-off thinking grounded in frontend performance.',
+      },
+    ],
+    revisionTips: ['Review caching hierarchies', 'Practice explaining rendering strategies clearly', 'Prepare frontend performance stories with metrics'],
   }
 };
 
