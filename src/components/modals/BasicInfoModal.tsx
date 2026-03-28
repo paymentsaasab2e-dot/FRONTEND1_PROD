@@ -1,7 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Image from 'next/image';
+import {
+  ALL_COUNTRY_CODES,
+  countryCodeToFlag,
+  formatPhoneCodeLabel,
+} from '@/lib/country-codes';
 
 interface BasicInfoModalProps {
   isOpen: boolean;
@@ -36,7 +41,9 @@ export default function BasicInfoModal({
   const [lastNameValue, setLastNameValue] = useState(initialData?.lastName || '');
   const [emailValue, setEmailValue] = useState(initialData?.email || '');
   const [phoneValue, setPhoneValue] = useState(initialData?.phone || '');
-  const [phoneCode, setPhoneCode] = useState(initialData?.phoneCode || '+1 (USA)');
+  const [phoneCode, setPhoneCode] = useState(initialData?.phoneCode || '+1 (United States)');
+  const [isPhoneCodeOpen, setIsPhoneCodeOpen] = useState(false);
+  const [phoneCodeSearch, setPhoneCodeSearch] = useState('');
   const [genderValue, setGenderValue] = useState(initialData?.gender || '');
   const [dobValue, setDobValue] = useState(initialData?.dob || '');
   const [countryValue, setCountryValue] = useState(initialData?.country || '');
@@ -44,6 +51,27 @@ export default function BasicInfoModal({
   const [employmentValue, setEmploymentValue] = useState(initialData?.employment || '');
   const [passportNumberValue, setPassportNumberValue] = useState(initialData?.passportNumber || '');
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const phoneCodeRef = useRef<HTMLDivElement>(null);
+
+  const selectedPhoneCodeOption = useMemo(() => {
+    const directMatch = ALL_COUNTRY_CODES.find((item) => formatPhoneCodeLabel(item) === phoneCode);
+    if (directMatch) return directMatch;
+    const dialPrefix = phoneCode.split(' ')[0];
+    return ALL_COUNTRY_CODES.find((item) => item.dialCode === dialPrefix) || ALL_COUNTRY_CODES[0];
+  }, [phoneCode]);
+
+  const filteredPhoneCodes = useMemo(() => {
+    const query = phoneCodeSearch.trim().toLowerCase();
+    if (!query) return ALL_COUNTRY_CODES;
+
+    return ALL_COUNTRY_CODES.filter((item) => {
+      return (
+        item.name.toLowerCase().includes(query) ||
+        item.code.toLowerCase().includes(query) ||
+        item.dialCode.includes(query.replace(/\s/g, ''))
+      );
+    });
+  }, [phoneCodeSearch]);
 
   // Update values when initialData changes
   useEffect(() => {
@@ -53,7 +81,7 @@ export default function BasicInfoModal({
       setLastNameValue(initialData.lastName || '');
       setEmailValue(initialData.email || '');
       setPhoneValue(initialData.phone || '');
-      setPhoneCode(initialData.phoneCode || '+1 (USA)');
+      setPhoneCode(initialData.phoneCode || '+1 (United States)');
       setGenderValue(initialData.gender || '');
       setDobValue(initialData.dob || '');
       setCountryValue(initialData.country || '');
@@ -67,7 +95,7 @@ export default function BasicInfoModal({
       setLastNameValue('');
       setEmailValue('');
       setPhoneValue('');
-      setPhoneCode('+1 (USA)');
+      setPhoneCode('+1 (United States)');
       setGenderValue('');
       setDobValue('');
       setCountryValue('');
@@ -76,6 +104,19 @@ export default function BasicInfoModal({
       setPassportNumberValue('');
     }
   }, [initialData, isOpen]);
+
+  useEffect(() => {
+    if (!isPhoneCodeOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (phoneCodeRef.current && !phoneCodeRef.current.contains(event.target as Node)) {
+        setIsPhoneCodeOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isPhoneCodeOpen]);
 
   const handleSave = async () => {
     await onSave({
@@ -215,15 +256,52 @@ export default function BasicInfoModal({
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="text-xs font-medium text-gray-500">Phone Number</label>
                     <div className="grid grid-cols-[140px_1fr] gap-2">
-                      <select
-                        value={phoneCode}
-                        onChange={(e) => setPhoneCode(e.target.value)}
-                        className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                      >
-                        <option>+1 (USA)</option>
-                        <option>+44 (UK)</option>
-                        <option>+91 (India)</option>
-                      </select>
+                      <div className="relative" ref={phoneCodeRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsPhoneCodeOpen((prev) => !prev)}
+                          className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-left text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className="text-base">{countryCodeToFlag(selectedPhoneCodeOption.code)}</span>
+                            <span className="truncate text-sm">{selectedPhoneCodeOption.dialCode}</span>
+                          </span>
+                          <span className="text-xs text-gray-400">▼</span>
+                        </button>
+
+                        {isPhoneCodeOpen && (
+                          <div className="absolute top-[calc(100%+6px)] left-0 z-50 w-[290px] max-h-[280px] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg py-2">
+                            <div className="px-3 pb-2 sticky top-0 bg-white z-10">
+                              <input
+                                type="text"
+                                value={phoneCodeSearch}
+                                onChange={(e) => setPhoneCodeSearch(e.target.value)}
+                                placeholder="Search country / code"
+                                className="h-9 w-full rounded-md border border-gray-200 px-3 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+                            {filteredPhoneCodes.map((item) => (
+                              <button
+                                key={`${item.code}-${item.dialCode}`}
+                                type="button"
+                                onClick={() => {
+                                  setPhoneCode(formatPhoneCodeLabel(item));
+                                  setIsPhoneCodeOpen(false);
+                                  setPhoneCodeSearch('');
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <span className="text-base">{countryCodeToFlag(item.code)}</span>
+                                <span className="font-semibold text-sm w-14">{item.dialCode}</span>
+                                <span className="text-sm text-gray-600 truncate">{item.name}</span>
+                              </button>
+                            ))}
+                            {filteredPhoneCodes.length === 0 && (
+                              <div className="px-3 py-2 text-sm text-gray-500">No country found</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <input
                         type="tel"
                         value={phoneValue}
@@ -247,7 +325,7 @@ export default function BasicInfoModal({
                     <select
                       value={genderValue}
                       onChange={(e) => setGenderValue(e.target.value)}
-                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-black shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                     >
                       <option value="">Select Gender</option>
                       <option>Male</option>
@@ -296,7 +374,7 @@ export default function BasicInfoModal({
                       type="text"
                       value={cityValue}
                       onChange={(e) => setCityValue(e.target.value)}
-                      className="h-11 w-full rounded-lg border border-gray-200 px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                          className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-left text-black shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none flex items-center justify-between"
                       placeholder="Enter current city"
                     />
                   </div>
@@ -308,10 +386,11 @@ export default function BasicInfoModal({
                       className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                     >
                       <option value="">Select Country</option>
-                      <option>United States</option>
-                      <option>United Kingdom</option>
-                      <option>India</option>
-                      <option>Canada</option>
+                      {ALL_COUNTRY_CODES.map((country) => (
+                        <option key={country.code} value={country.name}>
+                          {country.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -328,7 +407,7 @@ export default function BasicInfoModal({
                     <select
                       value={employmentValue}
                       onChange={(e) => setEmploymentValue(e.target.value)}
-                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-gray-900 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                      className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-black shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                     >
                       <option value="">Select Status</option>
                       <option>Employed</option>

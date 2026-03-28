@@ -100,7 +100,7 @@ export default function SummaryModal({
                     value={summaryText}
                     onChange={(e) => onSummaryChange(e.target.value)}
                     rows={8}
-                    className="min-h-[180px] w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="min-h-[180px] w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-black transition-all duration-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Briefly describe your experience, key skills, and achievements..."
                     style={{
                       fontFamily: 'Inter, sans-serif',

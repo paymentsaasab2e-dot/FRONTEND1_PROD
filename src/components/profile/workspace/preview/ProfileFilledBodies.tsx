@@ -631,35 +631,35 @@ export function ProfileLanguagesFilled({
         {data.languages.map((lang, index) => (
           <div
             key={lang.id || index}
-            className="flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2.5"
           >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">
-                {lang.name || '—'}
-              </p>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {lang.proficiency ? (
-                  <PreviewChip tone="blue">{lang.proficiency}</PreviewChip>
-                ) : null}
-                {lang.speak ? <PreviewChip tone="green">Speak</PreviewChip> : null}
-                {lang.read ? <PreviewChip tone="purple">Read</PreviewChip> : null}
-                {lang.write ? <PreviewChip tone="amber">Write</PreviewChip> : null}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">
+                  {lang.name || '—'}
+                  {lang.proficiency ? ` - ${lang.proficiency}` : ''}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {lang.speak ? <PreviewChip tone="green">Speak</PreviewChip> : null}
+                  {lang.read ? <PreviewChip tone="purple">Read</PreviewChip> : null}
+                  {lang.write ? <PreviewChip tone="amber">Write</PreviewChip> : null}
+                </div>
               </div>
+              {lang.documents && lang.documents.length > 0 ? (
+                <a
+                  href={getApiDocumentHref(lang.documents[0])}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-orange-700 hover:underline"
+                  title={getDocumentName(lang.documents[0])}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Proof ({lang.documents.length})
+                </a>
+              ) : null}
             </div>
-            {lang.documents && lang.documents.length > 0 ? (
-              <a
-                href={getApiDocumentHref(lang.documents[0])}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-orange-700 hover:underline"
-                title={getDocumentName(lang.documents[0])}
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Proof ({lang.documents.length})
-              </a>
-            ) : null}
           </div>
         ))}
       </div>

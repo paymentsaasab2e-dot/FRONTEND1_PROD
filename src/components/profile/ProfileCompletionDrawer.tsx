@@ -292,6 +292,11 @@ export default function ProfileCompletionDrawer({
         return;
       }
 
+      if (!continueAfterSave) {
+        onClose();
+        return;
+      }
+
       if (continueAfterSave) {
         const nextSection = getFirstIncompleteSection(refreshed.sections);
         if (nextSection) {
@@ -478,14 +483,6 @@ export default function ProfileCompletionDrawer({
               className="h-11 rounded-xl border border-gray-300 px-4 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Progress"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleSave(true)}
-              disabled={!hasDrafts || saving}
-              className="h-11 rounded-xl bg-[#0EA5E9] px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save & Continue"}
             </button>
           </div>
         </div>
