@@ -30,13 +30,13 @@ export function LmsSheet({
   onClose,
   size = 'md',
 }: LmsSheetProps) {
-  if (!open) return null;
-  if (typeof document === 'undefined') return null;
+  const canRender = open && typeof document !== 'undefined';
 
   // Basic usability: ESC closes, lock background scroll.
   // (Not a full focus trap; keep lightweight for LMS-only.)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
+    if (!canRender) return;
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -47,7 +47,9 @@ export function LmsSheet({
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose]);
+  }, [canRender, onClose]);
+
+  if (!canRender) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[500]">

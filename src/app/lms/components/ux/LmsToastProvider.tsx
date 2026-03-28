@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 
@@ -19,6 +19,7 @@ type LmsToastApi = {
 };
 
 const LmsToastContext = createContext<LmsToastApi | null>(null);
+const noopSubscribe = () => () => {};
 
 function iconForTone(tone: ToastTone) {
   if (tone === 'success') return CheckCircle2;
@@ -34,6 +35,7 @@ function toneClass(tone: ToastTone) {
 
 export function LmsToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<LmsToast[]>([]);
+  const isMounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   const push = useCallback((t: Omit<LmsToast, 'id'>) => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -44,11 +46,12 @@ export function LmsToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const api = useMemo<LmsToastApi>(() => ({ push }), [push]);
+  const canRenderPortal = isMounted && toasts.length > 0;
 
   return (
     <LmsToastContext.Provider value={api}>
       {children}
-      {typeof document !== 'undefined'
+      {canRenderPortal
         ? createPortal(
             <div className="fixed right-3 top-[calc(var(--app-header-height,5.75rem)+0.75rem)] z-[600] flex w-[min(360px,calc(100vw-1.5rem))] flex-col gap-2">
               {toasts.map((t) => {

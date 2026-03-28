@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -20,6 +21,46 @@ const ICON_MAP: Record<CourseIconKey, typeof Code2> = {
   palette: Palette,
   lineChart: LineChart,
   bookOpen: BookOpen,
+};
+
+const COURSE_COVER_MAP: Record<
+  string,
+  {
+    src: string;
+    alt: string;
+    eyebrow: string;
+  }
+> = {
+  c1: {
+    src: '/lms/course-covers/frontend-interview-readiness.svg',
+    alt: 'Frontend interview readiness course cover',
+    eyebrow: 'Interview prep',
+  },
+  c2: {
+    src: '/lms/course-covers/ui-craft-accessibility.svg',
+    alt: 'UI craft and accessibility course cover',
+    eyebrow: 'Design systems',
+  },
+  c3: {
+    src: '/lms/course-covers/data-literacy-product-roles.svg',
+    alt: 'Data literacy for product roles course cover',
+    eyebrow: 'Analytics',
+  },
+  c4: {
+    src: '/lms/course-covers/professional-communication.svg',
+    alt: 'Professional communication course cover',
+    eyebrow: 'Collaboration',
+  },
+  c5: {
+    src: '/lms/course-covers/system-design-warm-up.svg',
+    alt: 'System design warm-up course cover',
+    eyebrow: 'Architecture',
+  },
+  c6: {
+    src: '/lms/course-covers/career-narrative-lab.svg',
+    alt: 'Career narrative lab course cover',
+    eyebrow: 'Storytelling',
+  },
 };
 
 function courseCtaLabel(progress: number | null) {
@@ -85,6 +126,9 @@ function LmsCoursesPageContent() {
   const { state, toggleSaveCourse, setLastActiveCourseId } = useLmsState();
   const toast = useLmsToast();
   const focus = searchParams.get('focus')?.trim() ?? '';
+  const source = searchParams.get('from')?.trim() ?? '';
+  const topic = searchParams.get('topic')?.trim() ?? '';
+  const recommendedCourseId = searchParams.get('recommendedCourseId')?.trim() ?? '';
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<'all' | 'Beginner' | 'Intermediate'>('all');
   const [status, setStatus] = useState<'all' | 'in_progress' | 'completed' | 'saved'>('all');
@@ -133,6 +177,9 @@ function LmsCoursesPageContent() {
     }
     if (focus) {
       sorted.sort((a, b) => {
+        const aIsRecommended = recommendedCourseId && a.id === recommendedCourseId;
+        const bIsRecommended = recommendedCourseId && b.id === recommendedCourseId;
+        if (aIsRecommended !== bIsRecommended) return aIsRecommended ? -1 : 1;
         const aMatches = courseMatchesFocus(a, focus);
         const bMatches = courseMatchesFocus(b, focus);
         if (aMatches === bMatches) return 0;
@@ -141,11 +188,18 @@ function LmsCoursesPageContent() {
     }
 
     return sorted;
-  }, [category, durationBand, focus, level, query, sortBy, state.courseProgress, state.savedCourseIds, status]);
+  }, [category, durationBand, focus, level, query, recommendedCourseId, sortBy, state.courseProgress, state.savedCourseIds, status]);
 
   const focusMatchCount = useMemo(
     () => (focus ? courses.filter((course) => courseMatchesFocus(course, focus)).length : 0),
     [courses, focus]
+  );
+  const highlightedCourse = useMemo(
+    () =>
+      (recommendedCourseId ? courses.find((course) => course.id === recommendedCourseId) : null) ??
+      courses.find((course) => (focus ? courseMatchesFocus(course, focus) : false)) ??
+      null,
+    [courses, focus, recommendedCourseId]
   );
 
   return (
@@ -239,13 +293,18 @@ function LmsCoursesPageContent() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-bold text-gray-900">
-                Suggested lessons for <span className="text-[#28A8E1]">{focus}</span>
+                Suggested lessons for <span className="text-[#28A8E1]">{topic || focus}</span>
               </p>
               <p className="mt-1 text-sm text-gray-600">
                 {focusMatchCount > 0
-                  ? `${focusMatchCount} matching course${focusMatchCount === 1 ? '' : 's'} surfaced first based on your quiz context.`
-                  : 'No direct matches were found, so the catalog is still available for broader browsing.'}
+                  ? `${focusMatchCount} matching course${focusMatchCount === 1 ? '' : 's'} surfaced first${source === 'quizzes' ? ` because Quizzes flagged ${topic || focus} as your next review area.` : ' based on your quiz context.'}`
+                  : `No direct matches were found for ${topic || focus}, so the full catalog is still available for broader browsing.`}
               </p>
+              {highlightedCourse ? (
+                <p className="mt-1 text-sm font-semibold text-sky-900">
+                  Start with: {highlightedCourse.title}
+                </p>
+              ) : null}
             </div>
             <Link href="/lms/courses" className="text-sm font-semibold text-[#28A8E1] hover:underline">
               Clear suggestion focus
@@ -277,10 +336,11 @@ function LmsCoursesPageContent() {
         />
       ) : null}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
         {courses.map((course) => {
           const isFocusMatch = focus ? courseMatchesFocus(course, focus) : false;
           const Icon = ICON_MAP[course.iconKey];
+          const cover = COURSE_COVER_MAP[course.id] ?? COURSE_COVER_MAP.c1;
           const saved = state.savedCourseIds.includes(course.id);
           const pct = state.courseProgress[course.id] ?? course.progress ?? 0;
           const meta = lmsCourseMeta[course.id];
@@ -295,7 +355,7 @@ function LmsCoursesPageContent() {
           return (
             <div
               key={course.id}
-              className={`${LMS_CARD_INTERACTIVE} ${isFocusMatch ? 'border-[#28A8E1]/30 bg-sky-50/20' : ''}`}
+              className={`${LMS_CARD_INTERACTIVE} group ${isFocusMatch ? 'border-[#28A8E1]/30 bg-sky-50/20' : ''}`}
               onClick={(e) => {
                 const target = e.target as HTMLElement;
                 if (target.closest('a,button')) return;
@@ -312,41 +372,57 @@ function LmsCoursesPageContent() {
                 }
               }}
             >
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#28A8E1] border border-blue-100">
-                  <Icon className="h-5 w-5" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1 space-y-3">
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <Link
-                        href={`/lms/courses/${course.id}`}
-                        onClick={() => setLastActiveCourseId(course.id)}
-                        className="text-lg font-bold text-gray-900 leading-snug hover:underline"
-                      >
-                        {course.title}
-                      </Link>
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {isFocusMatch ? <LmsStatusBadge label={`Focus: ${focus}`} tone="success" /> : null}
-                        {saved ? <LmsStatusBadge label="Saved" tone="info" /> : null}
-                      </div>
-                    </div>
-                    <p className="mt-1.5 text-sm text-gray-500 font-normal leading-relaxed">{course.description}</p>
+              <div className="-mx-6 -mt-6 overflow-hidden border-b border-slate-200/70 sm:-mx-7 sm:-mt-7">
+                <div className="relative aspect-[16/9] bg-slate-100">
+                  <Image
+                    src={cover.src}
+                    alt={cover.alt}
+                    fill
+                    sizes="(min-width: 1280px) 380px, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/35 via-slate-900/5 to-transparent" />
+                  <div className="absolute left-4 top-4 flex items-center gap-2">
+                    <span className="rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-800 shadow-sm">
+                      {cover.eyebrow}
+                    </span>
                   </div>
-
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {levelBadge(course.level)}
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500">
-                        <Clock className="h-3.5 w-3.5" strokeWidth={2} />
-                        {course.duration}
-                      </span>
-                      {meta?.category ? (
-                        <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">
-                          {meta.category}
-                        </span>
-                      ) : null}
+                  <div className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-white/88 text-[#28A8E1] shadow-sm backdrop-blur-sm">
+                    <Icon className="h-5 w-5" strokeWidth={2} />
+                  </div>
+                </div>
+              </div>
+              <div className="min-w-0 space-y-4 pt-5">
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      href={`/lms/courses/${course.id}`}
+                      onClick={() => setLastActiveCourseId(course.id)}
+                      className="text-lg font-bold text-gray-900 leading-snug hover:underline"
+                    >
+                      {course.title}
+                    </Link>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {isFocusMatch ? <LmsStatusBadge label={`Focus: ${focus}`} tone="success" /> : null}
+                      {saved ? <LmsStatusBadge label="Saved" tone="info" /> : null}
                     </div>
+                  </div>
+                  <p className="mt-1.5 text-sm text-gray-500 font-normal leading-relaxed">{course.description}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {levelBadge(course.level)}
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500">
+                      <Clock className="h-3.5 w-3.5" strokeWidth={2} />
+                      {course.duration}
+                    </span>
+                    {meta?.category ? (
+                      <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">
+                        {meta.category}
+                      </span>
+                    ) : null}
+                  </div>
 
                     {pct > 0 && pct < 100 ? (
                       <LmsProgressBar value={pct} />
@@ -385,7 +461,6 @@ function LmsCoursesPageContent() {
                   </div>
                 </div>
               </div>
-            </div>
           );
         })}
       </div>
