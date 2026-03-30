@@ -135,6 +135,7 @@ export default function ProfilePage() {
   const [isVisaWorkAuthorizationModalOpen, setIsVisaWorkAuthorizationModalOpen] = useState(false);
   const [isVaccinationModalOpen, setIsVaccinationModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [careerPreferencesSuccessMessage, setCareerPreferencesSuccessMessage] = useState('');
 
   // Summary form state
   const [summaryText, setSummaryText] = useState('');
@@ -731,6 +732,7 @@ export default function ProfilePage() {
     } else if (category === 'GLOBAL ELIGIBILITY' && itemName === 'Visa & Work Authorization') {
       setIsVisaWorkAuthorizationModalOpen(true);
     } else if (category === 'GLOBAL ELIGIBILITY' && itemName === 'Vaccination') {
+      setVaccinationData(undefined);
       setIsVaccinationModalOpen(true);
     } else if (category === 'RESUME' && itemName === 'Resume') {
       setIsResumeModalOpen(true);
@@ -977,11 +979,69 @@ export default function ProfilePage() {
       ? `${Math.round(Number(atsPct))}%`
       : null;
 
+  useEffect(() => {
+    if (!careerPreferencesSuccessMessage) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setCareerPreferencesSuccessMessage('');
+    }, 3200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [careerPreferencesSuccessMessage]);
+
   return (
     <ProfilePageShell>
       <Header />
 
       <main className="mx-auto max-w-[1320px] px-5 py-7 sm:px-6 sm:py-8">
+        {careerPreferencesSuccessMessage && (
+          <div className="mb-6">
+            <div className="flex items-start justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50 px-5 py-4 text-slate-900 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-sky-300 text-sky-700">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4" />
+                    <path d="M12 8h.01" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-base font-semibold">Career preferences updated</p>
+                  <p className="mt-1 text-sm text-slate-600">{careerPreferencesSuccessMessage}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCareerPreferencesSuccessMessage('')}
+                className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition hover:text-slate-700"
+                aria-label="Close success message"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
         {/* Back Button */}
         <button
           onClick={() => router.back()}
@@ -3251,7 +3311,8 @@ export default function ProfilePage() {
 
               if (response.ok) {
                 await refreshProfileData(candidateId);
-          setIsCareerPreferencesModalOpen(false);
+                setCareerPreferencesSuccessMessage('Your career preferences were saved successfully.');
+                setIsCareerPreferencesModalOpen(false);
               } else {
                 alert('Failed to save career preferences');
               }
@@ -3523,4 +3584,3 @@ export default function ProfilePage() {
     </ProfilePageShell>
   );
 }
-

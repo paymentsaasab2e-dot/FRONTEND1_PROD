@@ -133,6 +133,7 @@ export default function BasicInfoModal({
       employment: employmentValue,
       passportNumber: passportNumberValue,
     });
+    onClose();
   };
 
   useEffect(() => {

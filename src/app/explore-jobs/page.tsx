@@ -1373,13 +1373,12 @@ const DashboardPage = () => {
 
       {
         isScreeningModalOpen && selectedJob && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pb-4 pt-24 sm:pt-28">
             <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleCloseModal} />
             <div
-              className="bg-white rounded-lg shadow-xl overflow-y-auto z-10"
+              className="z-10 w-full max-w-[520px] overflow-y-auto rounded-lg bg-white shadow-xl"
               style={{
-                width: "600px",
-                maxHeight: "85vh",
+                maxHeight: "calc(100vh - 140px)",
                 borderRadius: "10px",
                 boxShadow: "0 0 2px 0 rgba(23, 26, 31, 0.20), 0 0 1px 0 rgba(23, 26, 31, 0.07)"
               }}

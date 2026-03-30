@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, KeyboardEvent } from 'react';
+import Image from 'next/image';
+import { API_BASE_URL } from '@/lib/api-base';
 import ProfileDrawer from '../ui/ProfileDrawer';
 
 interface CareerPreferencesModalProps {
@@ -117,6 +119,9 @@ export default function CareerPreferencesModal({
     initialData?.availabilityToStart || ''
   );
   const [noticePeriod, setNoticePeriod] = useState(initialData?.noticePeriod || '');
+  const [aiSuggestedJobTitles, setAiSuggestedJobTitles] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionError, setSuggestionError] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -152,7 +157,66 @@ export default function CareerPreferencesModal({
     setSalaryFrequency('Annually');
     setAvailabilityToStart('');
     setNoticePeriod('');
+    setAiSuggestedJobTitles([]);
+    setSuggestionError('');
   };
+
+  useEffect(() => {
+    const query = jobTitleInput.trim();
+
+    if (!query) {
+      setAiSuggestedJobTitles([]);
+      setSuggestionError('');
+      setIsLoadingSuggestions(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsLoadingSuggestions(true);
+        setSuggestionError('');
+
+        const response = await fetch(`${API_BASE_URL}/ai/job-title-suggestions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            query,
+            selectedTitles: preferredJobTitles,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.message || 'Failed to load suggestions');
+        }
+
+        setAiSuggestedJobTitles(
+          Array.isArray(result?.data?.suggestions) ? result.data.suggestions : []
+        );
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+
+        setAiSuggestedJobTitles([]);
+        setSuggestionError(
+          error instanceof Error ? error.message : 'Unable to load AI suggestions right now'
+        );
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [jobTitleInput, preferredJobTitles]);
 
   const handleAddJobTitle = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && jobTitleInput.trim()) {
@@ -167,6 +231,15 @@ export default function CareerPreferencesModal({
 
   const handleRemoveJobTitle = (title: string) => {
     setPreferredJobTitles(preferredJobTitles.filter(t => t !== title));
+  };
+
+  const handleSelectSuggestedJobTitle = (title: string) => {
+    if (!preferredJobTitles.includes(title)) {
+      setPreferredJobTitles([...preferredJobTitles, title]);
+    }
+    setJobTitleInput('');
+    setAiSuggestedJobTitles([]);
+    setSuggestionError('');
   };
 
   const handleToggleJobType = (jobType: string) => {
@@ -289,8 +362,55 @@ export default function CareerPreferencesModal({
                       onChange={(e) => setJobTitleInput(e.target.value)}
                       onKeyPress={handleAddJobTitle}
                       placeholder="e.g., Software Engineer, Marketing Executive…"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
+
+                    <div className="mt-3 rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-4">
+                      <div className="mb-3 flex items-center gap-2">
+                        <Image
+                          src="/auto_ai.png"
+                          alt="AI suggestions"
+                          width={20}
+                          height={20}
+                          className="h-5 w-5 object-contain"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">AI Job Title Suggestions</p>
+                          <p className="text-xs text-gray-600">
+                            Start typing a role and we'll suggest relevant job titles you can pick from.
+                          </p>
+                        </div>
+                      </div>
+
+                      {jobTitleInput.trim() ? (
+                        isLoadingSuggestions ? (
+                          <p className="text-sm text-gray-600">Finding relevant AI job title suggestions...</p>
+                        ) : suggestionError ? (
+                          <p className="text-sm text-red-600">{suggestionError}</p>
+                        ) : aiSuggestedJobTitles.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {aiSuggestedJobTitles.map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                type="button"
+                                onClick={() => handleSelectSuggestedJobTitle(suggestion)}
+                                className="inline-flex items-center rounded-full border border-blue-200 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 transition hover:border-blue-400 hover:bg-blue-50"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-600">
+                            No close AI suggestions yet. Press Enter to add your custom job title.
+                          </p>
+                        )
+                      ) : (
+                        <p className="text-sm text-gray-600">
+                          Type any role, keyword, or career direction and AI will suggest matching job titles below.
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Preferred Industry and Functional Area */}
@@ -302,7 +422,7 @@ export default function CareerPreferencesModal({
                       <select
                         value={preferredIndustry}
                         onChange={(e) => setPreferredIndustry(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Select Industry</option>
                         {INDUSTRIES.map((industry) => (
@@ -317,7 +437,7 @@ export default function CareerPreferencesModal({
                       <select
                         value={functionalArea}
                         onChange={(e) => setFunctionalArea(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">Select Functional Area</option>
                         {FUNCTIONAL_AREAS.map((area) => (
@@ -420,7 +540,7 @@ export default function CareerPreferencesModal({
                       onChange={(e) => setLocationInput(e.target.value)}
                       onKeyPress={handleAddLocation}
                       placeholder="City or Country… e.g., Mumbai, Dubai, Toronto"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
 
@@ -451,7 +571,7 @@ export default function CareerPreferencesModal({
                     <select
                       value={salaryCurrency}
                       onChange={(e) => setSalaryCurrency(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       {CURRENCIES.map((currency) => (
                         <option key={currency} value={currency}>{currency}</option>
@@ -462,12 +582,12 @@ export default function CareerPreferencesModal({
                       value={salaryAmount}
                       onChange={(e) => setSalaryAmount(e.target.value)}
                       placeholder="Enter expected salary…"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="flex-1 px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <select
                       value={salaryFrequency}
                       onChange={(e) => setSalaryFrequency(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       {SALARY_FREQUENCIES.map((freq) => (
                         <option key={freq} value={freq}>{freq}</option>
@@ -491,7 +611,7 @@ export default function CareerPreferencesModal({
                     <select
                       value={availabilityToStart}
                       onChange={(e) => setAvailabilityToStart(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Availability</option>
                       {AVAILABILITY_OPTIONS.map((option) => (
@@ -506,7 +626,7 @@ export default function CareerPreferencesModal({
                     <select
                       value={noticePeriod}
                       onChange={(e) => setNoticePeriod(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Notice Period</option>
                       {NOTICE_PERIOD_OPTIONS.map((option) => (

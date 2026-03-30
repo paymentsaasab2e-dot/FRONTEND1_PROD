@@ -279,20 +279,19 @@ export default function ProfileCompletionDrawer({
       setDrafts({});
       setSuccessMessage("Progress saved successfully.");
 
+      if (!continueAfterSave) {
+        onClose();
+        return;
+      }
+
       if (refreshed.percentage >= 100) {
         setConversation((prev) => [
           ...prev,
           {
             role: "assistant",
-            content:
-              "Congratulations, your profile is now complete. I’ll close this drawer in a moment.",
+            content: "Congratulations, your profile is now complete.",
           },
         ]);
-        setTimeout(() => onClose(), 2000);
-        return;
-      }
-
-      if (!continueAfterSave) {
         onClose();
         return;
       }
