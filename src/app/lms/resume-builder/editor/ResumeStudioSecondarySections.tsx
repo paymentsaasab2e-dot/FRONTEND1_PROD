@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { LmsCtaButton } from '../../components/ux/LmsCtaButton';
 import { LmsStatusBadge } from '../../components/ux/LmsStatusBadge';
-import type { ResumeEducation, ResumeExperience } from '../../state/LmsStateProvider';
+import type { ResumeEducation, ResumeExperience, LmsResumeAnalysisResult } from '../../state/LmsStateProvider';
 import {
   INPUT_CLASS,
   StudioField,
@@ -395,7 +395,10 @@ export function ResumeStudioCompletionSection({
   readinessHighlights,
   sectionRef,
   targetRole,
+  onAnalyze,
   onSync,
+  analysis,
+  isAnalyzing,
 }: {
   atsReadiness: number;
   completionState: DerivedSectionState;
@@ -405,7 +408,10 @@ export function ResumeStudioCompletionSection({
   readinessHighlights: string[];
   sectionRef: (node: HTMLDivElement | null) => void;
   targetRole: string;
+  onAnalyze: () => void;
   onSync: () => void;
+  analysis?: LmsResumeAnalysisResult;
+  isAnalyzing: boolean;
 }) {
   return (
     <StudioSectionCard
@@ -418,37 +424,113 @@ export function ResumeStudioCompletionSection({
       icon={CheckCircle2}
       accent="from-sky-600 via-cyan-500 to-emerald-400"
       sectionRef={sectionRef}
+      actions={
+        <button
+          type="button"
+          disabled={isAnalyzing}
+          className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition-colors hover:bg-sky-100 disabled:opacity-50"
+          onClick={onAnalyze}
+        >
+          <Sparkles className={`h-3.5 w-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} strokeWidth={2} />
+          {isAnalyzing ? 'Analyzing...' : 'Refresh AI Insights'}
+        </button>
+      }
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50/70 p-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <LmsStatusBadge
-              label={`${editorProgress}% studio complete`}
-              tone={editorProgress >= 85 ? 'success' : 'warning'}
-            />
-            <LmsStatusBadge
-              label={`${atsReadiness}% ATS readiness`}
-              tone={atsReadiness >= 80 ? 'success' : 'warning'}
-            />
-            <LmsStatusBadge
-              label={`${keywordCoverage}% keyword coverage`}
-              tone={keywordCoverage >= 70 ? 'success' : 'warning'}
-            />
-          </div>
+        <div className="space-y-4">
+          <div className="rounded-[1.6rem] border border-slate-200 bg-slate-50/70 p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <LmsStatusBadge
+                label={`${editorProgress}% studio complete`}
+                tone={editorProgress >= 85 ? 'success' : 'warning'}
+              />
+              <LmsStatusBadge
+                label={`${atsReadiness}% ATS readiness`}
+                tone={atsReadiness >= 80 ? 'success' : 'warning'}
+              />
+              <LmsStatusBadge
+                label={`${keywordCoverage}% keyword coverage`}
+                tone={keywordCoverage >= 70 ? 'success' : 'warning'}
+              />
+              {analysis && (
+                <LmsStatusBadge
+                  label={`${analysis.readinessScore}% AI readiness`}
+                  tone={analysis.readinessScore >= 80 ? 'success' : 'warning'}
+                />
+              )}
+            </div>
 
-          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-400"
-              style={{ width: `${editorProgress}%` }}
-            />
-          </div>
+            <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-500 to-emerald-400"
+                style={{ width: `${editorProgress}%` }}
+              />
+            </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {readinessHighlights.map((item) => (
-              <div key={item} className="rounded-2xl border border-white bg-white/90 p-4">
-                <p className="text-sm font-semibold text-slate-700">{item}</p>
+            {analysis ? (
+              <div className="mt-6 space-y-6">
+                <div className="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-sky-900">
+                    <Briefcase className="h-4 w-4" />
+                    <h4 className="text-sm font-bold">Recruiter's 3-Second View</h4>
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    "{analysis.recruiterView}"
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-5">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700">Top Strengths</h4>
+                    <ul className="mt-3 space-y-2">
+                      {analysis.strengths.map((s: string, i: number) => (
+                        <li key={i} className="flex gap-2 text-sm text-slate-700">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50/30 p-5">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-700">Critical Gaps</h4>
+                    <ul className="mt-3 space-y-2">
+                      {analysis.gaps.map((g: string, i: number) => (
+                        <li key={i} className="flex gap-2 text-sm text-slate-700">
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                          {g}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Suggested Next Steps</h4>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {analysis.nextSteps.map((step: string, i: number) => (
+                      <span key={i} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                        {step}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-            ))}
+            ) : (
+              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-8 text-center bg-white/50">
+                <Sparkles className="mx-auto h-8 w-8 text-slate-300" />
+                <p className="mt-3 text-sm font-bold text-slate-900">Run AI Recruit Analysis</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Get deep insights on how your resume performs against your target role.
+                </p>
+                <button
+                  type="button"
+                  onClick={onAnalyze}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-transform hover:scale-105 active:scale-95"
+                >
+                  Analyze now
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-5 rounded-[1.4rem] border border-sky-100 bg-sky-50/70 p-4">

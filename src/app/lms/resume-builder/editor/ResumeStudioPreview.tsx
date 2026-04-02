@@ -195,12 +195,15 @@ export function ResumeStudioPreview({
   sections,
   template,
   activeSection,
+  resumeHtml,
 }: {
   sections: ResumeSections;
   template: string | null;
   activeSection: SectionId;
+  resumeHtml?: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [previewFlavor, setPreviewFlavor] = useState<'studio' | 'original'>(resumeHtml ? 'original' : 'studio');
   const canRenderPortal = typeof document !== 'undefined';
   const inlineFrameRef = useRef<HTMLDivElement | null>(null);
   const inlinePaperRef = useRef<HTMLDivElement | null>(null);
@@ -263,11 +266,28 @@ export function ResumeStudioPreview({
     <>
       <div className="rounded-[2rem] border border-slate-200/80 bg-gradient-to-b from-slate-100 via-slate-50 to-white p-4 shadow-[0_24px_60px_-36px_rgba(15,23,42,0.35)] sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3 px-1">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Recruiter preview</p>
-            <p className="mt-1 text-sm font-semibold text-slate-700">{prettifyTemplate(template)}</p>
+          <div className="flex rounded-lg bg-slate-200/60 p-1">
+            <button
+              onClick={() => setPreviewFlavor('studio')}
+              className={`rounded-md px-3 py-1 text-[10px] font-bold tracking-tight transition-all ${
+                previewFlavor === 'studio' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              STUDIO
+            </button>
+            <button
+              onClick={() => setPreviewFlavor('original')}
+              className={`rounded-md px-3 py-1 text-[10px] font-bold tracking-tight transition-all ${
+                previewFlavor === 'original' ? 'bg-white text-sky-600 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              ORIGINAL
+            </button>
           </div>
-          <LmsStatusBadge label="Print ready" tone="info" />
+          <LmsStatusBadge 
+            label={previewFlavor === 'original' ? 'Rich Format' : 'System Template'} 
+            tone={previewFlavor === 'original' ? 'success' : 'info'} 
+          />
         </div>
 
         <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_28px_60px_-34px_rgba(15,23,42,0.25)]">
@@ -297,19 +317,36 @@ export function ResumeStudioPreview({
                 minHeight: inlineScaledHeight,
               }}
             >
-              <ResumeDocumentPaper
-                activeSection={activeSection}
-                contentId="resume-preview"
-                paperRef={inlinePaperRef}
-                className="!mx-0 !max-w-none"
-                style={{
-                  width: inlinePaperWidth,
-                  transform: `scale(${inlineScale})`,
-                  transformOrigin: 'top left',
-                }}
-                sections={sections}
-                template={template}
-              />
+              {previewFlavor === 'studio' ? (
+                <ResumeDocumentPaper
+                  activeSection={activeSection}
+                  contentId="resume-preview"
+                  paperRef={inlinePaperRef}
+                  className="!mx-0 !max-w-none"
+                  style={{
+                    width: inlinePaperWidth,
+                    transform: `scale(${inlineScale})`,
+                    transformOrigin: 'top left',
+                  }}
+                  sections={sections}
+                  template={template}
+                />
+              ) : (
+                <div 
+                  ref={inlinePaperRef}
+                  className="mx-auto bg-white p-8 text-sm text-slate-800 shadow-none !mx-0 !max-w-none"
+                  style={{ 
+                    width: inlinePaperWidth, 
+                    transform: `scale(${inlineScale})`, 
+                    transformOrigin: 'top left',
+                  }}
+                >
+                  <div 
+                    className="prose prose-slate max-w-none prose-h1:text-3xl prose-h1:font-bold prose-h2:text-xl prose-h2:border-b prose-h2:pb-1"
+                    dangerouslySetInnerHTML={{ __html: resumeHtml || '<p>No original CV content available.</p>' }} 
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -347,12 +384,21 @@ export function ResumeStudioPreview({
 
                   <div className="flex-1 overflow-auto bg-[radial-gradient(circle_at_top,#eef6ff,transparent_35%),linear-gradient(180deg,#f8fafc_0%,#eff6ff_52%,#f8fafc_100%)] px-4 py-6 sm:px-8">
                     <div className="mx-auto w-full max-w-[900px] rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_60px_-30px_rgba(15,23,42,0.32)]">
-                      <ResumeDocumentPaper
-                        activeSection={activeSection}
-                        contentId="resume-preview-expanded"
-                        sections={sections}
-                        template={template}
-                      />
+                      {previewFlavor === 'studio' ? (
+                        <ResumeDocumentPaper
+                          activeSection={activeSection}
+                          contentId="resume-preview-expanded"
+                          sections={sections}
+                          template={template}
+                        />
+                      ) : (
+                        <div className="mx-auto min-h-[1080px] w-full bg-white p-12 text-slate-900 shadow-none sm:p-16">
+                          <div 
+                            className="prose prose-slate max-w-none prose-h1:text-4xl prose-h1:font-black prose-h1:tracking-tight prose-h2:text-2xl prose-h2:font-bold prose-h2:border-b prose-h2:border-slate-200 prose-h2:pb-2 prose-p:leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: resumeHtml || '<p>No original CV content available.</p>' }} 
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

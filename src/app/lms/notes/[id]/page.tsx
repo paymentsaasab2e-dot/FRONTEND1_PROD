@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { ArrowLeft, Pencil, Save, Trash2 } from 'lucide-react';
 import { LMS_CARD_CLASS, LMS_PAGE_SUBTITLE } from '../../constants';
-import { useLmsState } from '../../state/LmsStateProvider';
 import { LmsCtaButton } from '../../components/ux/LmsCtaButton';
 import { useLmsToast } from '../../components/ux/LmsToastProvider';
 import type { NoteType } from '../../data/ai-mock';
 import { LmsSkeleton } from '../../components/states/LmsSkeleton';
+import { fetchNoteDetail, updateNote, deleteNote } from '../../api/client';
 
 const NOTE_TYPES: NoteType[] = ['Interview Prep', 'Learning Notes', 'Company Research', 'Salary Research'];
 
@@ -26,14 +26,38 @@ function LmsNoteDetailPageContent() {
   const router = useRouter();
   const search = useSearchParams();
   const toast = useLmsToast();
-  const { state, updateNote, deleteNote } = useLmsState();
 
-  const note = useMemo(() => state.notes.find((n) => n.id === params.id), [params.id, state.notes]);
   const editMode = search.get('edit') === '1';
 
-  const [title, setTitle] = useState(note?.title ?? '');
-  const [type, setType] = useState<NoteType>(note?.type ?? 'Learning Notes');
-  const [body, setBody] = useState(note?.body ?? '');
+  const [loading, setLoading] = useState(true);
+  const [note, setNote] = useState<any>(null);
+
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState<NoteType | string>('Learning Notes');
+  const [body, setBody] = useState('');
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await fetchNoteDetail(params.id);
+        if (data) {
+          setNote(data);
+          setTitle(data.title);
+          setType(data.type);
+          setBody(data.body);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [params.id]);
+
+  if (loading) {
+    return <LmsNoteDetailPageFallback />;
+  }
 
   if (!note) {
     return (
@@ -44,11 +68,34 @@ function LmsNoteDetailPageContent() {
         </Link>
         <div className={`${LMS_CARD_CLASS} text-sm text-gray-600 bg-rose-50/20 border-rose-100`}>
           <p className="font-bold text-rose-800">Note not found</p>
-          <p className="mt-1">This note does not exist in your local session state.</p>
+          <p className="mt-1">This note does not exist in your database or was removed.</p>
         </div>
       </div>
     );
   }
+
+  const handleSave = async () => {
+    try {
+      await updateNote(note.id, { title: title.trim() || note.title, body, type });
+      toast.push({ title: 'Saved', message: 'Note updated in database.', tone: 'success' });
+      setNote({ ...note, title: title.trim() || note.title, body, type });
+      router.push(`/lms/notes/${note.id}`);
+    } catch (err) {
+      toast.push({ title: 'Error', message: 'Failed to update note.', tone: 'critical' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm('Are you sure you want to delete this note?')) {
+        try {
+            await deleteNote(note.id);
+            toast.push({ title: 'Note deleted', message: 'Removed from database.', tone: 'info' });
+            router.push('/lms/notes');
+        } catch (err) {
+            toast.push({ title: 'Error', message: 'Failed to delete note.', tone: 'critical' });
+        }
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -58,7 +105,7 @@ function LmsNoteDetailPageContent() {
           Back to notes
         </Link>
         <h1 className="mt-3 text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">{note.title}</h1>
-        <p className={LMS_PAGE_SUBTITLE}>Frontend-only note detail + edit (mock).</p>
+        <p className={LMS_PAGE_SUBTITLE}>Stored directly in your MongoDB Database.</p>
       </div>
 
       <div className={`${LMS_CARD_CLASS} space-y-4`}>
@@ -101,11 +148,7 @@ function LmsNoteDetailPageContent() {
                 <LmsCtaButton
                   variant="primary"
                   leftIcon={<Save className="h-4 w-4" strokeWidth={2} />}
-                  onClick={() => {
-                    updateNote(note.id, { title: title.trim() || note.title, body, type });
-                    toast.push({ title: 'Saved', message: 'Note updated natively.', tone: 'success' });
-                    router.push(`/lms/notes/${note.id}`);
-                  }}
+                  onClick={handleSave}
                 >
                   Save changes
                 </LmsCtaButton>
@@ -117,13 +160,7 @@ function LmsNoteDetailPageContent() {
               <button
                 type="button"
                 className="inline-flex items-center justify-center gap-2 rounded-xl text-rose-600 px-4 py-2 text-sm font-semibold hover:bg-rose-50 transition-colors"
-                onClick={() => {
-                   if (confirm('Are you sure you want to delete this note?')) {
-                       deleteNote(note.id);
-                       toast.push({ title: 'Note deleted', message: 'Removed from local state.', tone: 'info' });
-                       router.push('/lms/notes');
-                   }
-                }}
+                onClick={handleDelete}
               >
                  <Trash2 className="h-4 w-4" />
                  Delete note
@@ -140,13 +177,7 @@ function LmsNoteDetailPageContent() {
                 <button
                   type="button"
                   className="inline-flex items-center justify-center rounded-xl text-rose-600 px-3 py-2 text-sm font-semibold hover:bg-rose-50 transition-colors"
-                  onClick={() => {
-                     if (confirm('Are you sure you want to delete this note?')) {
-                         deleteNote(note.id);
-                         toast.push({ title: 'Note deleted', message: 'Removed from local state.', tone: 'info' });
-                         router.push('/lms/notes');
-                     }
-                  }}
+                  onClick={handleDelete}
                 >
                    <Trash2 className="h-4 w-4" />
                 </button>
@@ -159,7 +190,7 @@ function LmsNoteDetailPageContent() {
                 </LmsCtaButton>
               </div>
             </div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last updated · {note.updated}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last updated · {new Date(note.updatedAt).toLocaleDateString()}</p>
             <pre className="whitespace-pre-wrap text-sm font-normal text-gray-700 leading-relaxed font-sans mt-4">{note.body}</pre>
           </>
         )}

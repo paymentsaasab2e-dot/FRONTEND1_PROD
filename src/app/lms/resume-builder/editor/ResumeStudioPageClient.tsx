@@ -13,12 +13,20 @@ import {
   Save,
   Target,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LMS_CARD_CLASS, LMS_PAGE_SUBTITLE } from '../../constants';
 import { LmsCtaButton } from '../../components/ux/LmsCtaButton';
 import { LmsStatusBadge } from '../../components/ux/LmsStatusBadge';
 import { useLmsToast } from '../../components/ux/LmsToastProvider';
+import CVEditor from '@/components/cveditor/CVEditor';
+import { 
+  fetchResumeHtml, 
+  saveResumeHtml, 
+  improveResumeText, 
+  exportResumePdf 
+} from '../../api/client';
 import {
   ResumeEducation,
   ResumeExperience,
@@ -62,6 +70,9 @@ export function ResumeStudioPageClient() {
     resetResumeDraft,
     setResumeDraftSections,
     setResumeTemplate,
+    syncResumeDraftToBackend,
+    generateResumeSummaryWithAi,
+    analyzeResumeWithAi,
   } = useLmsState();
 
   const template = search.get('template');
@@ -89,6 +100,45 @@ export function ResumeStudioPageClient() {
     layout: null,
     completion: null,
   });
+
+  const [editorMode, setEditorMode] = useState<'studio' | 'ai'>('studio');
+  const [resumeHtml, setResumeHtml] = useState('');
+  const [isHtmlLoading, setIsHtmlLoading] = useState(false);
+  const [isHtmlSaving, setIsHtmlSaving] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  useEffect(() => {
+    const loadHtml = async () => {
+      setIsHtmlLoading(true);
+      try {
+        const data = await fetchResumeHtml();
+        if (data?.resume_html) {
+          setResumeHtml(data.resume_html);
+        }
+      } catch (err) {
+        console.error('Failed to load resume HTML', err);
+      } finally {
+        setIsHtmlLoading(false);
+      }
+    };
+    loadHtml();
+  }, []);
+
+  useEffect(() => {
+    if (editorMode === 'ai' && !resumeHtml && !isHtmlLoading) {
+      if (sections.basics.name) {
+        setResumeHtml(`
+          <div class="resume-container">
+            <h1>${sections.basics.name}</h1>
+            <p>${sections.basics.headline}</p>
+            <p>${sections.basics.location} | ${sections.basics.email}</p>
+            <h2>Summary</h2>
+            <p>${sections.summary}</p>
+          </div>
+        `);
+      }
+    }
+  }, [editorMode, resumeHtml, sections.basics, isHtmlLoading]);
 
   const setSectionRef = useCallback(
     (id: SectionId) => (node: HTMLDivElement | null) => {
@@ -449,6 +499,37 @@ export function ResumeStudioPageClient() {
     });
   };
 
+  const handleGenerateSummary = async () => {
+    if (!sections.basics.headline.trim()) {
+      toast.push({
+        title: 'Headline required',
+        message: 'Please set a headline in the Basics section first to guide the AI.',
+        tone: 'warning',
+      });
+      return;
+    }
+
+    try {
+      toast.push({
+        title: 'Generating summary...',
+        message: 'AI is crafting a professional overview based on your headline.',
+        tone: 'info',
+      });
+      await generateResumeSummaryWithAi(sections.basics.headline);
+      toast.push({
+        title: 'Summary generated',
+        message: 'A new professional summary has been drafted for you.',
+        tone: 'success',
+      });
+    } catch (err) {
+      toast.push({
+        title: 'Generation failed',
+        message: 'Could not generate summary with AI at this time.',
+        tone: 'warning',
+      });
+    }
+  };
+
   const handleAppendKeyword = (keyword: string) => {
     if (sections.skills.toLowerCase().includes(keyword.toLowerCase())) {
       toast.push({
@@ -472,46 +553,73 @@ export function ResumeStudioPageClient() {
     window.print();
   };
 
-  const handleSaveDraft = () => {
-    markResumeSaved();
-    toast.push({
-      title: 'Draft saved',
-      message: 'Your resume studio state was preserved without changing the current data model.',
-      tone: 'success',
-    });
-  };
-
-  const handleReset = () => {
-    if (
-      window.confirm(
-        'Are you sure you want to reset this resume draft? Unsaved local changes will be removed.'
-      )
-    ) {
-      resetResumeDraft();
-      toast.push({
-        title: 'Draft reset',
-        message: 'Loaded the clean starting point for the resume studio.',
-        tone: 'info',
-      });
+  const handleSaveHtml = async () => {
+    setIsHtmlSaving(true);
+    try {
+      await saveResumeHtml(resumeHtml);
+      toast.push({ title: 'Resume saved', message: 'Your rich-text changes were preserved.', tone: 'success' });
+    } catch (err) {
+      toast.push({ title: 'Save failed', message: 'Could not reach backend to save your content.', tone: 'warning' });
+    } finally {
+      setIsHtmlSaving(false);
     }
   };
 
-  const handleSaveToCareerPath = () => {
-    markResumeSaved();
-    addPlannedItem({
-      id: 'res-1',
-      type: 'resume',
-      label: 'Completed Resume Draft',
-      href: '/lms/resume-builder',
-      sourceModule: 'resume-builder',
-      sourceLabel: 'Resume Builder',
-    });
-    toast.push({
-      title: 'Synced to Career Path',
-      message: 'Your resume draft is saved and its completion is now reflected in the LMS journey.',
-      tone: 'success',
-    });
-    router.push('/lms/career-path');
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const blob = await exportResumePdf(resumeHtml);
+      if (blob) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Resume_${sections.basics.name.replace(/\s+/g, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      toast.push({ title: 'Export failed', message: 'Could not generate PDF.', tone: 'warning' });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleAnalyzeResume = async () => {
+    try {
+      await analyzeResumeWithAi();
+      toast.push({ title: 'Analysis complete', message: 'AI has evaluated your readiness.', tone: 'success' });
+    } catch (err) {
+      toast.push({ title: 'Analysis failed', message: 'Could not analyze resume.', tone: 'warning' });
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    try {
+      toast.push({ title: 'Saving draft...', message: 'Syncing with secure cloud storage.', tone: 'info' });
+      await syncResumeDraftToBackend();
+      toast.push({ title: 'Draft Secure', message: 'All current sections and layout choices are now synced.', tone: 'success' });
+    } catch (err) {
+      toast.push({ title: 'Save failed', message: 'Could not reach backend to save your draft.', tone: 'warning' });
+    }
+  };
+
+  const handleSyncResume = async () => {
+    try {
+      toast.push({ title: 'Saving draft...', message: 'Syncing with secure cloud storage.', tone: 'info' });
+      await syncResumeDraftToBackend();
+      toast.push({
+        title: 'Draft saved',
+        message: 'Your resume studio state was preserved in the database.',
+        tone: 'success',
+      });
+    } catch (err) {
+      toast.push({
+        title: 'Save failed',
+        message: 'Could not sync with backend. Local changes are still active.',
+        tone: 'warning',
+      });
+    }
   };
 
   const handlePreviewAction = () => {
@@ -628,227 +736,316 @@ export function ResumeStudioPageClient() {
 
         <section className="hide-on-print sticky top-[calc(var(--app-header-height,5.75rem)+0.75rem)] z-20 rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] backdrop-blur-xl">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Editor toolbar</p>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
-                  {prettifyTemplate(draft.template)}
-                </span>
-                <span className="rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-800">
-                  {targetRole}
-                </span>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800">
-                  {keywordCoverage}% keyword coverage
-                </span>
+            <div className="flex items-center gap-3">
+              <div className="flex rounded-xl bg-slate-100 p-1">
+                <button
+                  onClick={() => setEditorMode('studio')}
+                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
+                    editorMode === 'studio'
+                      ? 'bg-white text-sky-600 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  STUDIO
+                </button>
+                <button
+                  onClick={() => setEditorMode('ai')}
+                  className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${
+                    editorMode === 'ai'
+                      ? 'bg-white text-sky-600 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  AI EDITOR
+                </button>
+              </div>
+              <div className="h-6 w-px bg-slate-200" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Editor state</p>
+                <p className="text-xs font-bold text-slate-700">
+                  {editorMode === 'studio' ? 'Structured blocks' : 'Free-form rich text'}
+                </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <LmsCtaButton variant="secondary" leftIcon={<RotateCcw className="h-4 w-4" strokeWidth={2} />} onClick={handleReset}>
-                Reset
-              </LmsCtaButton>
-              <LmsCtaButton variant="secondary" leftIcon={<Eye className="h-4 w-4" strokeWidth={2} />} onClick={handlePreviewAction}>
-                {showPreview ? 'Hide preview' : 'View layout'}
-              </LmsCtaButton>
-              <LmsCtaButton variant="secondary" leftIcon={<Printer className="h-4 w-4" strokeWidth={2} />} onClick={handlePrint}>
-                Print / PDF
-              </LmsCtaButton>
-              <LmsCtaButton variant="secondary" leftIcon={<LayoutTemplate className="h-4 w-4" strokeWidth={2} />} onClick={() => scrollToSection('layout')}>
-                Templates
-              </LmsCtaButton>
-              <LmsCtaButton variant="primary" leftIcon={<Save className="h-4 w-4" strokeWidth={2} />} onClick={handleSaveDraft}>
-                Save draft
-              </LmsCtaButton>
+              {editorMode === 'studio' ? (
+                <>
+                  <LmsCtaButton 
+                    variant="secondary" 
+                    leftIcon={<RotateCcw className="h-4 w-4" strokeWidth={2} />} 
+                    onClick={() => {
+                       toast.push({ title: 'Syncing...', message: 'Restoring data from your original profile.', tone: 'info' });
+                       window.location.reload(); 
+                    }}
+                  >
+                    Sync Profile
+                  </LmsCtaButton>
+                  <LmsCtaButton variant="secondary" leftIcon={<Eye className="h-4 w-4" strokeWidth={2} />} onClick={handlePreviewAction}>
+                    {showPreview ? 'Hide preview' : 'View layout'}
+                  </LmsCtaButton>
+                  <LmsCtaButton variant="secondary" leftIcon={<Printer className="h-4 w-4" strokeWidth={2} />} onClick={handlePrint}>
+                    Print Preview
+                  </LmsCtaButton>
+                  <LmsCtaButton variant="primary" leftIcon={<Save className="h-4 w-4" strokeWidth={2} />} onClick={handleSaveDraft}>
+                    Save draft
+                  </LmsCtaButton>
+                </>
+              ) : (
+                <>
+                  <LmsCtaButton 
+                    variant="secondary" 
+                    leftIcon={<Printer className="h-4 w-4" strokeWidth={2} />} 
+                    disabled={isExportingPdf}
+                    onClick={handleExportPdf}
+                  >
+                    {isExportingPdf ? 'Exporting...' : 'Export PDF'}
+                  </LmsCtaButton>
+                  <LmsCtaButton 
+                    variant="primary" 
+                    leftIcon={<Save className="h-4 w-4" strokeWidth={2} />} 
+                    disabled={isHtmlSaving}
+                    onClick={handleSaveHtml}
+                  >
+                    {isHtmlSaving ? 'Saving...' : 'Save Changes'}
+                  </LmsCtaButton>
+                </>
+              )}
             </div>
           </div>
         </section>
 
         <div className="space-y-6">
-          <section className="hide-on-print">
-            <ResumeStudioNavigator
-              activeSection={activeSection}
-              completionState={completionState}
-              editorProgress={editorProgress}
-              keywordCoverage={keywordCoverage}
-              atsReadiness={atsReadiness}
-              onSelect={scrollToSection}
-              sectionStates={sectionStates}
-            />
-          </section>
+          {editorMode === 'studio' ? (
+            <>
+              <section className="hide-on-print">
+                <ResumeStudioNavigator
+                  activeSection={activeSection}
+                  completionState={completionState}
+                  editorProgress={editorProgress}
+                  keywordCoverage={keywordCoverage}
+                  atsReadiness={atsReadiness}
+                  onSelect={scrollToSection}
+                  sectionStates={sectionStates}
+                  analysis={draft.analysis}
+                />
+              </section>
 
-          <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-10">
-            <main className="min-w-0 space-y-6">
-              <ResumeStudioBasicsSection
-                collapsed={collapsedSections.basics}
-                sections={sections}
-                sectionState={sectionStates.basics}
-                sectionRef={setSectionRef('basics')}
-                onToggleCollapse={() => toggleSectionCollapse('basics')}
-                onBasicsChange={handleBasicsChange}
-              />
-
-              <ResumeStudioSummarySection
-                collapsed={collapsedSections.summary}
-                sections={sections}
-                sectionState={sectionStates.summary}
-                sectionRef={setSectionRef('summary')}
-                summaryWordCount={summaryWordCount}
-                onToggleCollapse={() => toggleSectionCollapse('summary')}
-                onImproveSummary={handleImproveSummary}
-                onSummaryChange={(value) => setResumeDraftSections({ summary: value })}
-              />
-
-              <ResumeStudioExperienceSection
-                collapsed={collapsedSections.experience}
-                onAddExperience={handleAddExperience}
-                onToggleCollapse={() => toggleSectionCollapse('experience')}
-                onRemoveExperience={(id) =>
-                  setResumeDraftSections({
-                    experience: sections.experience.filter((entry) => entry.id !== id),
-                  })
-                }
-                onUpdateExperience={handleUpdateExperience}
-                sectionRef={setSectionRef('experience')}
-                sectionState={sectionStates.experience}
-                sections={sections}
-              />
-
-              <ResumeStudioEducationSection
-                collapsed={collapsedSections.education}
-                onAddEducation={handleAddEducation}
-                onToggleCollapse={() => toggleSectionCollapse('education')}
-                onRemoveEducation={(id) =>
-                  setResumeDraftSections({
-                    education: sections.education.filter((entry) => entry.id !== id),
-                  })
-                }
-                onUpdateEducation={handleUpdateEducation}
-                sectionRef={setSectionRef('education')}
-                sectionState={sectionStates.education}
-                sections={sections}
-              />
-
-              <ResumeStudioSkillsSection
-                collapsed={collapsedSections.skills}
-                missingKeywords={missingKeywords}
-                onToggleCollapse={() => toggleSectionCollapse('skills')}
-                sectionRef={setSectionRef('skills')}
-                sectionState={sectionStates.skills}
-                sections={sections}
-                skillTokens={skillTokens}
-                onAppendKeyword={handleAppendKeyword}
-                onSkillsChange={(value) => setResumeDraftSections({ skills: value })}
-              />
-
-              <ResumeStudioLayoutSection
-                collapsed={collapsedSections.layout}
-                currentTemplate={draft.template}
-                onToggleCollapse={() => toggleSectionCollapse('layout')}
-                onSelectTemplate={(templateId, templateLabel) => {
-                  setResumeTemplate(templateId);
-                  toast.push({ title: 'Template updated', message: templateLabel, tone: 'info' });
-                }}
-                sectionRef={setSectionRef('layout')}
-                sectionState={sectionStates.layout}
-              />
-
-              <ResumeStudioCompletionSection
-                atsReadiness={atsReadiness}
-                completionState={completionState}
-                draftStatus={draft.updatedAtLabel}
-                editorProgress={editorProgress}
-                keywordCoverage={keywordCoverage}
-                readinessHighlights={readinessHighlights}
-                sectionRef={setSectionRef('completion')}
-                targetRole={targetRole}
-                onSync={handleSaveToCareerPath}
-              />
-            </main>
-
-            <aside
-              id="resume-preview-shell"
-              className={`${showPreview ? 'flex' : 'hidden'} hide-on-print flex-col gap-5 self-start xl:flex xl:sticky xl:top-[calc(var(--app-header-height,5.75rem)+7.9rem)]`}
-            >
-              <ResumeStudioPreview sections={sections} template={draft.template} activeSection={activeSection} />
-
-              <div className={`${LMS_CARD_CLASS} border-slate-200/90 bg-white shadow-[0_18px_48px_-32px_rgba(15,23,42,0.24)]`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Smart insights</p>
-                    <p className="mt-2 text-lg font-bold text-slate-900">ATS and recruiter lens</p>
-                  </div>
-                  <LmsStatusBadge
-                    label={`${atsReadiness}% ready`}
-                    tone={atsReadiness >= 80 ? 'success' : 'warning'}
+              <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-10">
+                <main className="min-w-0 space-y-6">
+                  <ResumeStudioBasicsSection
+                    collapsed={collapsedSections.basics}
+                    sections={sections}
+                    sectionState={sectionStates.basics}
+                    sectionRef={setSectionRef('basics')}
+                    onToggleCollapse={() => toggleSectionCollapse('basics')}
+                    onBasicsChange={handleBasicsChange}
                   />
-                </div>
 
-                <div className="mt-5 space-y-4">
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
-                    <p className="text-sm font-bold text-slate-900">Keyword coverage</p>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
-                        style={{ width: `${keywordCoverage}%` }}
+                  <ResumeStudioSummarySection
+                    collapsed={collapsedSections.summary}
+                    sections={sections}
+                    sectionState={sectionStates.summary}
+                    sectionRef={setSectionRef('summary')}
+                    summaryWordCount={summaryWordCount}
+                    onToggleCollapse={() => toggleSectionCollapse('summary')}
+                    onImproveSummary={handleImproveSummary}
+                    onGenerateSummary={handleGenerateSummary}
+                    onSummaryChange={(value) => setResumeDraftSections({ summary: value })}
+                  />
+
+                  <ResumeStudioExperienceSection
+                    collapsed={collapsedSections.experience}
+                    onAddExperience={handleAddExperience}
+                    onToggleCollapse={() => toggleSectionCollapse('experience')}
+                    onRemoveExperience={(id) =>
+                      setResumeDraftSections({
+                        experience: sections.experience.filter((entry) => entry.id !== id),
+                      })
+                    }
+                    onUpdateExperience={handleUpdateExperience}
+                    sectionRef={setSectionRef('experience')}
+                    sectionState={sectionStates.experience}
+                    sections={sections}
+                  />
+
+                  <ResumeStudioEducationSection
+                    collapsed={collapsedSections.education}
+                    onAddEducation={handleAddEducation}
+                    onToggleCollapse={() => toggleSectionCollapse('education')}
+                    onRemoveEducation={(id) =>
+                      setResumeDraftSections({
+                        education: sections.education.filter((entry) => entry.id !== id),
+                      })
+                    }
+                    onUpdateEducation={handleUpdateEducation}
+                    sectionRef={setSectionRef('education')}
+                    sectionState={sectionStates.education}
+                    sections={sections}
+                  />
+
+                  <ResumeStudioSkillsSection
+                    collapsed={collapsedSections.skills}
+                    missingKeywords={missingKeywords}
+                    onToggleCollapse={() => toggleSectionCollapse('skills')}
+                    sectionRef={setSectionRef('skills')}
+                    sectionState={sectionStates.skills}
+                    sections={sections}
+                    skillTokens={skillTokens}
+                    onAppendKeyword={handleAppendKeyword}
+                    onSkillsChange={(value) => setResumeDraftSections({ skills: value })}
+                  />
+
+                  <ResumeStudioLayoutSection
+                    collapsed={collapsedSections.layout}
+                    currentTemplate={draft.template}
+                    onToggleCollapse={() => toggleSectionCollapse('layout')}
+                    onSelectTemplate={(templateId, templateLabel) => {
+                      setResumeTemplate(templateId);
+                      toast.push({ title: 'Template updated', message: templateLabel, tone: 'info' });
+                    }}
+                    sectionRef={setSectionRef('layout')}
+                    sectionState={sectionStates.layout}
+                  />
+
+                  <ResumeStudioCompletionSection
+                    sectionRef={(node) => (sectionRefs.current.completion = node)}
+                    completionState={sectionStates.completion}
+                    editorProgress={editorProgress}
+                    atsReadiness={atsReadiness}
+                    keywordCoverage={keywordCoverage}
+                    readinessHighlights={readinessHighlights}
+                    draftStatus={draft.updatedAtLabel}
+                    targetRole={targetRole}
+                    analysis={draft.analysis}
+                    isAnalyzing={draft.isAnalyzing}
+                    onAnalyze={handleAnalyzeResume}
+                    onSync={handleSyncResume}
+                  />
+                </main>
+
+                <aside
+                  id="resume-preview-shell"
+                  className={`${showPreview ? 'flex' : 'hidden'} hide-on-print flex-col gap-5 self-start xl:flex xl:sticky xl:top-[calc(var(--app-header-height,5.75rem)+7.9rem)]`}
+                >
+                  <ResumeStudioPreview 
+                    sections={sections} 
+                    template={draft.template} 
+                    activeSection={activeSection} 
+                    resumeHtml={resumeHtml}
+                  />
+
+                  <div className={`${LMS_CARD_CLASS} border-slate-200/90 bg-white shadow-[0_18px_48px_-32px_rgba(15,23,42,0.24)]`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Smart insights</p>
+                        <p className="mt-2 text-lg font-bold text-slate-900">ATS and recruiter lens</p>
+                      </div>
+                      <LmsStatusBadge
+                        label={`${atsReadiness}% ready`}
+                        tone={atsReadiness >= 80 ? 'success' : 'warning'}
                       />
                     </div>
-                    <p className="mt-3 text-sm text-slate-500">
-                      Target posting: {resumeJobMatch.title} at {resumeJobMatch.company}
-                    </p>
-                  </div>
 
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
-                    <p className="text-sm font-bold text-slate-900">Missing keywords</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {missingKeywords.length > 0 ? (
-                        missingKeywords.map((keyword) => (
-                          <button
-                            key={keyword}
-                            type="button"
-                            onClick={() => {
-                              handleAppendKeyword(keyword);
-                              scrollToSection('skills');
-                            }}
-                            className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-semibold text-sky-800 transition-colors hover:bg-sky-50"
-                          >
-                            Add {keyword}
-                          </button>
-                        ))
-                      ) : (
-                        <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
-                          No urgent gaps surfaced
-                        </span>
-                      )}
+                    <div className="mt-5 space-y-4">
+                      <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
+                        <p className="text-sm font-bold text-slate-900">Keyword coverage</p>
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
+                            style={{ width: `${keywordCoverage}%` }}
+                          />
+                        </div>
+                        <p className="mt-3 text-sm text-slate-500">
+                          Target posting: {resumeJobMatch.title} at {resumeJobMatch.company}
+                        </p>
+                      </div>
+
+                      <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
+                        <p className="text-sm font-bold text-slate-900">Missing keywords</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {missingKeywords.length > 0 ? (
+                            missingKeywords.map((keyword) => (
+                              <button
+                                key={keyword}
+                                type="button"
+                                onClick={() => {
+                                  handleAppendKeyword(keyword);
+                                  scrollToSection('skills');
+                                }}
+                                className="rounded-full border border-sky-100 bg-white px-3 py-1.5 text-xs font-semibold text-sky-800 transition-colors hover:bg-sky-50"
+                              >
+                                Add {keyword}
+                              </button>
+                            ))
+                          ) : (
+                            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+                              No urgent gaps surfaced
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
+                        <p className="text-sm font-bold text-slate-900">Improvement prompts</p>
+                        <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                          {resumeAtsRisks.map((risk) => (
+                            <li key={risk} className="flex gap-2">
+                              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" strokeWidth={2.1} />
+                              {risk}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
+                        <p className="text-sm font-bold text-slate-900">Recruiter scan</p>
+                        <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                          {resumeRecruiterSimulation.weakBullets.map((bullet) => (
+                            <li key={bullet} className="flex gap-2">
+                              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
+                              {bullet}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
-                    <p className="text-sm font-bold text-slate-900">Improvement prompts</p>
-                    <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                      {resumeAtsRisks.map((risk) => (
-                        <li key={risk} className="flex gap-2">
-                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" strokeWidth={2.1} />
-                          {risk}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50/70 p-4">
-                    <p className="text-sm font-bold text-slate-900">Recruiter scan</p>
-                    <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                      {resumeRecruiterSimulation.weakBullets.map((bullet) => (
-                        <li key={bullet} className="flex gap-2">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
+                </aside>
+              </div>
+            </>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {isHtmlLoading ? (
+                <div className="flex min-h-[600px] items-center justify-center rounded-[2rem] border border-slate-200 bg-white/50 backdrop-blur-sm">
+                  <div className="text-center">
+                    <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-sky-600"></div>
+                    <p className="mt-4 text-sm font-bold text-slate-600">Syncing AI documents...</p>
                   </div>
                 </div>
-              </div>
-            </aside>
-          </div>
+              ) : (
+                <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl">
+                   <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                     <div>
+                       <h3 className="text-sm font-bold text-slate-900">AI Rich Editor</h3>
+                       <p className="text-xs text-slate-500 font-medium">Free-form editing with TipTap and AI improvement tools.</p>
+                     </div>
+                     <div className="flex gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-700 border border-amber-100">
+                          <Sparkles className="h-3 w-3" />
+                          AI POWERED
+                        </span>
+                     </div>
+                   </div>
+                   <CVEditor
+                     content={resumeHtml}
+                     onUpdate={setResumeHtml}
+                     onImproveText={improveResumeText}
+                   />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>

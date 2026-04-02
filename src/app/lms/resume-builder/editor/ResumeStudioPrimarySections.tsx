@@ -123,6 +123,7 @@ export function ResumeStudioSummarySection({
   sectionRef,
   summaryWordCount,
   onImproveSummary,
+  onGenerateSummary,
   onSummaryChange,
 }: {
   collapsed: boolean;
@@ -132,6 +133,7 @@ export function ResumeStudioSummarySection({
   sectionRef: (node: HTMLDivElement | null) => void;
   summaryWordCount: number;
   onImproveSummary: () => void;
+  onGenerateSummary: () => void;
   onSummaryChange: (value: string) => void;
 }) {
   return (
@@ -149,14 +151,24 @@ export function ResumeStudioSummarySection({
       onToggleCollapse={onToggleCollapse}
       sectionRef={sectionRef}
       actions={
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition-colors hover:bg-sky-100"
-          onClick={onImproveSummary}
-        >
-          <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
-          Improve summary
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition-colors hover:bg-sky-100"
+            onClick={onGenerateSummary}
+          >
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+            Generate with AI
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 transition-colors hover:bg-slate-100"
+            onClick={onImproveSummary}
+          >
+            <Bot className="h-3.5 w-3.5" strokeWidth={2} />
+            Improve summary
+          </button>
+        </div>
       }
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px]">

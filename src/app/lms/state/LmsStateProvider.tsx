@@ -9,6 +9,7 @@ import {
   notesUserNotes,
   type NoteType,
 } from '../data/ai-mock';
+import { updateCareerPath, fetchCareerPath, fetchResumeDraft, updateResumeDraft, generateResumeSummary, analyzeResumeDraft } from '../api/client';
 
 export type LmsPlannedItemType = 'course' | 'quiz' | 'event' | 'topic' | 'note' | 'resume';
 
@@ -36,6 +37,38 @@ export type ResumeEducation = {
   institution: string;
   degree: string;
   duration: string;
+};
+
+export type ResumeSections = {
+  basics: {
+    name: string;
+    headline: string;
+    email: string;
+    phone: string;
+    location: string;
+  };
+  summary: string;
+  skills: string;
+  experience: ResumeExperience[];
+  education: ResumeEducation[];
+};
+
+export type LmsResumeAnalysisResult = {
+  readinessScore: number;
+  recruiterView: string;
+  strengths: string[];
+  gaps: string[];
+  nextSteps: string[];
+};
+
+export type LmsResumeDraftState = {
+  template: string | null;
+  sections: ResumeSections;
+  updatedAtLabel: string;
+  isHydrated: boolean;
+  isSaving: boolean;
+  analysis?: LmsResumeAnalysisResult;
+  isAnalyzing: boolean;
 };
 
 type LmsNote = {
@@ -69,23 +102,7 @@ type LmsState = {
   selectedSkill: string | null;
   quizAttempts: Record<string, LmsQuizAttemptSummary>;
   notes: LmsNote[];
-  resumeDraft: {
-    template: string | null;
-    updatedAtLabel: string;
-    sections: {
-      basics: {
-        name: string;
-        headline: string;
-        email: string;
-        phone: string;
-        location: string;
-      };
-      summary: string;
-      skills: string;
-      experience: ResumeExperience[];
-      education: ResumeEducation[];
-    };
-  };
+  resumeDraft: LmsResumeDraftState;
   careerPath: LmsCareerPathState;
   isHydrated: boolean;
 };
@@ -108,13 +125,17 @@ type Action =
   | { type: 'updateNote'; id: string; patch: Partial<{ title: string; body: string; type: NoteType; updated: string }> }
   | { type: 'deleteNote'; id: string }
   | { type: 'setResumeTemplate'; template: string | null }
-  | { type: 'setResumeDraftSections'; sections: Partial<LmsState['resumeDraft']['sections']> }
+  | { type: 'setResumeDraftSections'; sections: Partial<ResumeSections> }
   | { type: 'resetResumeDraft' }
   | { type: 'markResumeSaved' }
+  | { type: 'resumeHydrate'; draft: Partial<LmsResumeDraftState> }
+  | { type: 'setResumeAnalyzing'; isAnalyzing: boolean }
+  | { type: 'setResumeAnalysis'; analysis: LmsResumeAnalysisResult }
   | { type: 'careerStart' }
   | { type: 'careerToggleStep'; stepId: string }
   | { type: 'careerSetStepCompletion'; stepId: string; completed: boolean }
   | { type: 'careerReset' }
+  | { type: 'careerHydrate'; data: Partial<LmsCareerPathState> }
   | { type: 'hydrate'; state: LmsState };
 
 const STORAGE_KEY = 'lmsState:v1';
@@ -125,38 +146,24 @@ const EVENT_TITLE_TO_ID = new Map(eventsWithAI.map((event) => [event.title.toLow
 const VALID_CAREER_STEP_IDS = new Set(careerMissionStepIds);
 const NETWORKING_EVENT_IDS = new Set(['evt-102', 'evt-104']);
 
-const initialResumeDraft: LmsState['resumeDraft'] = {
+const initialResumeDraft: LmsResumeDraftState = {
   template: null,
   updatedAtLabel: 'Not saved yet',
+  isHydrated: false,
+  isSaving: false,
+  isAnalyzing: false,
   sections: {
     basics: {
-      name: 'Alex Developer',
-      headline: 'Frontend Engineer',
-      email: 'alex@example.com',
-      phone: '(555) 123-4567',
-      location: 'San Francisco, CA',
+      name: '',
+      headline: '',
+      email: '',
+      phone: '',
+      location: '',
     },
-    summary:
-      'Frontend engineer focused on clean UI, performance, and product impact. Strong React fundamentals; improving system design and testing coverage.',
-    skills: 'React, TypeScript, CSS, Accessibility, Performance, Testing (Jest/RTL)',
-    experience: [
-      {
-        id: 'exp-1',
-        company: 'Tech Corp',
-        role: 'Frontend Engineer',
-        duration: 'Jan 2024 - Present',
-        bullets:
-          'Built reusable UI components and improved dashboard performance.\nReduced feature dev time and improved Lighthouse scores (mock).',
-      },
-    ],
-    education: [
-      {
-        id: 'edu-1',
-        institution: 'State University',
-        degree: 'BS Computer Science',
-        duration: '2019 - 2023',
-      },
-    ],
+    summary: '',
+    skills: '',
+    experience: [],
+    education: [],
   },
 };
 
@@ -283,7 +290,7 @@ function sanitizeEducation(value: unknown) {
   return education.length > 0 ? education : initialResumeDraft.sections.education;
 }
 
-function sanitizeResumeDraft(value: unknown): LmsState['resumeDraft'] {
+function sanitizeResumeDraft(value: unknown): LmsResumeDraftState {
   if (!isRecord(value)) return initialResumeDraft;
   const sections = isRecord(value.sections) ? value.sections : {};
   const basics = isRecord(sections.basics) ? sections.basics : {};
@@ -291,6 +298,10 @@ function sanitizeResumeDraft(value: unknown): LmsState['resumeDraft'] {
   return {
     template: typeof value.template === 'string' ? value.template : null,
     updatedAtLabel: typeof value.updatedAtLabel === 'string' ? value.updatedAtLabel : initialResumeDraft.updatedAtLabel,
+    isHydrated: value.isHydrated === true,
+    isSaving: value.isSaving === true,
+    isAnalyzing: value.isAnalyzing === true,
+    analysis: isRecord(value.analysis) ? (value.analysis as LmsResumeAnalysisResult) : undefined,
     sections: {
       basics: {
         name: typeof basics.name === 'string' ? basics.name : initialResumeDraft.sections.basics.name,
@@ -312,9 +323,9 @@ function sanitizeResumeDraft(value: unknown): LmsState['resumeDraft'] {
 function sanitizePlannedItems(value: unknown): LmsPlannedItem[] {
   if (!Array.isArray(value)) return [];
   return value
-    .filter(isRecord)
     .map((item) => {
       if (
+        !isRecord(item) ||
         typeof item.id !== 'string' ||
         typeof item.label !== 'string' ||
         typeof item.type !== 'string' ||
@@ -333,7 +344,7 @@ function sanitizePlannedItems(value: unknown): LmsPlannedItem[] {
         createdAt: typeof item.createdAt === 'number' && Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
       } satisfies LmsPlannedItem;
     })
-    .filter((item): item is LmsPlannedItem => Boolean(item));
+    .filter((item): item is LmsPlannedItem => item !== null);
 }
 
 function sanitizeNumberRecord(
@@ -557,6 +568,12 @@ function reducer(state: LmsState, action: Action): LmsState {
         ...state,
         resumeDraft: { ...state.resumeDraft, updatedAtLabel: 'Just now' },
       });
+    case 'resumeHydrate':
+      return syncCareerPathState({ ...state, resumeDraft: { ...state.resumeDraft, ...action.draft } });
+    case 'setResumeAnalyzing':
+      return { ...state, resumeDraft: { ...state.resumeDraft, isAnalyzing: action.isAnalyzing } };
+    case 'setResumeAnalysis':
+      return { ...state, resumeDraft: { ...state.resumeDraft, analysis: action.analysis, isAnalyzing: false } };
     case 'careerStart':
       return syncCareerPathState({ ...state, careerPath: { ...state.careerPath, started: true } });
     case 'careerToggleStep': {
@@ -590,6 +607,8 @@ function reducer(state: LmsState, action: Action): LmsState {
         ...state,
         careerPath: { ...state.careerPath, started: false, manualCompletedStepIds: [], completedStepIds: [] },
       });
+    case 'careerHydrate':
+      return syncCareerPathState({ ...state, careerPath: { ...state.careerPath, ...action.data } });
     default:
       return state;
   }
@@ -614,6 +633,9 @@ type LmsStateApi = {
   setResumeDraftSections: (sections: Partial<LmsState['resumeDraft']['sections']>) => void;
   resetResumeDraft: () => void;
   markResumeSaved: () => void;
+  syncResumeDraftToBackend: () => Promise<void>;
+  generateResumeSummaryWithAi: (headline: string) => Promise<void>;
+  analyzeResumeWithAi: () => Promise<void>;
   careerStart: () => void;
   careerToggleStep: (stepId: string) => void;
   careerSetStepCompletion: (stepId: string, completed: boolean) => void;
@@ -624,6 +646,111 @@ const LmsStateContext = createContext<LmsStateApi | null>(null);
 
 export function LmsStateProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  // Load from backend on mount
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [cp, resume] = await Promise.allSettled([
+          fetchCareerPath(),
+          fetchResumeDraft()
+        ]);
+        
+        if (cp.status === 'fulfilled' && cp.value) {
+          dispatch({ 
+            type: 'careerHydrate', 
+            data: { 
+              started: cp.value.missionStarted, 
+              manualCompletedStepIds: cp.value.manualCompletedStepIds || [] 
+            } 
+          });
+        }
+        
+        if (resume.status === 'fulfilled' && resume.value) {
+           const val = resume.value;
+           dispatch({
+             type: 'resumeHydrate',
+             draft: {
+               template: val.templateId,
+               updatedAtLabel: val.lastSavedAt ? `Last saved ${new Date(val.lastSavedAt).toLocaleDateString()}` : 'Not saved yet',
+               sections: {
+                 basics: val.basics || initialResumeDraft.sections.basics,
+                 summary: val.basics?.summary || initialResumeDraft.sections.summary,
+                 skills: Array.isArray(val.skills) ? val.skills.join(', ') : (typeof val.skills === 'string' ? val.skills : ''),
+                 experience: Array.isArray(val.experience) ? val.experience : [],
+                 education: Array.isArray(val.education) ? val.education : []
+               }
+             }
+           });
+        }
+      } catch (err) {
+        // Silently fail
+      }
+    };
+    load();
+  }, []);
+
+  const syncResumeDraftToBackend = useCallback(async () => {
+     try {
+       await updateResumeDraft({
+         templateId: state.resumeDraft.template,
+         content: state.resumeDraft.sections
+       });
+       dispatch({ type: 'markResumeSaved' });
+     } catch (err) {
+       console.error('Failed to sync resume to backend', err);
+       throw err;
+     }
+  }, [state.resumeDraft.template, state.resumeDraft.sections]);
+
+  const generateResumeSummaryWithAi = useCallback(async (headline: string) => {
+    try {
+      const summary = await generateResumeSummary(headline);
+      if (summary) {
+        dispatch({
+          type: 'setResumeDraftSections',
+          sections: { summary }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to generate summary with AI', err);
+      throw err;
+    }
+  }, []);
+
+  const analyzeResumeWithAi = useCallback(async () => {
+    try {
+      dispatch({ type: 'setResumeAnalyzing', isAnalyzing: true });
+      const analysis = await analyzeResumeDraft();
+      if (analysis) {
+        dispatch({ type: 'setResumeAnalysis', analysis });
+      } else {
+        dispatch({ type: 'setResumeAnalyzing', isAnalyzing: false });
+      }
+    } catch (err) {
+      dispatch({ type: 'setResumeAnalyzing', isAnalyzing: false });
+      console.error('Failed to analyze resume with AI', err);
+      throw err;
+    }
+  }, []);
+
+  // Sync career path to backend when it changes
+  useEffect(() => {
+    if (!state.isHydrated) return;
+    
+    const sync = async () => {
+      try {
+        await updateCareerPath({
+          missionStarted: state.careerPath.started,
+          manualCompletedStepIds: state.careerPath.manualCompletedStepIds,
+        });
+      } catch (err) {
+        console.error('Failed to sync career path to backend', err);
+      }
+    };
+    
+    sync();
+  }, [state.careerPath.started, state.careerPath.manualCompletedStepIds, state.isHydrated]);
 
   useEffect(() => {
     try {
@@ -720,6 +847,9 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
       setResumeDraftSections,
       resetResumeDraft,
       markResumeSaved,
+      syncResumeDraftToBackend,
+      generateResumeSummaryWithAi,
+      analyzeResumeWithAi,
       careerStart,
       careerToggleStep,
       careerSetStepCompletion,
@@ -744,6 +874,9 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
       setResumeDraftSections,
       resetResumeDraft,
       markResumeSaved,
+      syncResumeDraftToBackend,
+      generateResumeSummaryWithAi,
+      analyzeResumeWithAi,
       careerStart,
       careerToggleStep,
       careerSetStepCompletion,

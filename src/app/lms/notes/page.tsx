@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, StickyNote, Sparkles, BookOpen, Link2, Search, X } from 'lucide-react';
 import { LMS_CARD_CLASS, LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../constants';
 import { AISectionHeading, AIActionChips, AIInsightCard } from '../components/ai';
@@ -12,27 +12,52 @@ import {
   notesLearningEngineOutput,
   notesSmartLinkDemo,
   notesEmptyState,
-  LMS_NOTES_SEED_ENABLED,
   type NoteType,
 } from '../data/ai-mock';
-import { useLmsState } from '../state/LmsStateProvider';
+import { fetchNotes } from '../api/client';
+import { LmsSkeleton } from '../components/states/LmsSkeleton';
 
-function noteTypeStyle(t: NoteType) {
-  const map: Record<NoteType, string> = {
+function noteTypeStyle(t: NoteType | string) {
+  const map: Record<string, string> = {
     'Interview Prep': 'bg-indigo-50 text-indigo-800 border-indigo-100',
     'Learning Notes': 'bg-emerald-50 text-emerald-900 border-emerald-100',
     'Company Research': 'bg-sky-50 text-sky-900 border-sky-100',
     'Salary Research': 'bg-amber-50 text-amber-900 border-amber-100',
   };
-  return map[t];
+  return map[t] || 'bg-gray-50 text-gray-800 border-gray-200';
 }
 
 const NOTE_TYPES: NoteType[] = ['Interview Prep', 'Learning Notes', 'Company Research', 'Salary Research'];
 
 export default function LmsNotesPage() {
   const router = useRouter();
-  const { state } = useLmsState();
-  const rawNotes = useMemo(() => (LMS_NOTES_SEED_ENABLED ? state.notes : []), [state.notes]);
+  
+  const [backendNotes, setBackendNotes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function init() {
+      try {
+        const data = await fetchNotes();
+        setBackendNotes(data || []);
+      } catch (err) {
+        console.error('Failed to load notes', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    init();
+  }, []);
+
+  const rawNotes = useMemo(() => {
+    return backendNotes.map(n => ({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      type: n.type,
+      updated: new Date(n.updatedAt).toLocaleDateString()
+    }));
+  }, [backendNotes]);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'All' | NoteType>('All');
@@ -49,6 +74,7 @@ export default function LmsNotesPage() {
   }, [rawNotes, searchQuery, activeTab]);
 
   const hasAnyNotes = rawNotes.length > 0;
+  
   const handleAIChipClick = (action: { id: string, label: string }) => {
      let title = 'AI Generated Draft';
      let type: NoteType = 'Learning Notes';
@@ -56,29 +82,26 @@ export default function LmsNotesPage() {
      
      if (action.id === 'sum') {
          title = 'Summary of recent topics';
-         body += '- Core concepts extracted from previous 3 modules.\\n- Review required items highlighted.';
+         body += '- Core concepts extracted.\\n- Review required items highlighted.';
      } else if (action.id === 'flash') {
          title = 'Flashcard collection';
-         body += 'Q: \\nA: \\n\\nQ: \\nA: ';
+         body += 'Q: \\nA: \\n';
      } else if (action.id === 'quiz') {
          title = 'Generated mock questions';
          type = 'Interview Prep';
          body += 'Question 1: Explain the tradeoff between X and Y?';
      } else if (action.id === 'keys') {
          title = 'Key concepts extraction';
-         body += 'Concept 1:\\n- Why it matters\\n- Common misconception\\n\\nConcept 2:\\n- Signal to remember\\n- Interview angle';
+         body += 'Concept 1:\\n- Why it matters';
      } else if (action.id === 'interview') {
          title = 'Interview answer bank';
          type = 'Interview Prep';
-         body += 'Question: Tell me about a time you improved performance.\\nAnswer outline:\\n- Situation\\n- Task\\n- Action\\n- Result';
      } else if (action.id === 'mockq') {
          title = 'Mock interview question set';
          type = 'Interview Prep';
-         body += '1. Walk through the trade-offs behind your last frontend architecture decision.\\n2. Explain how you debugged a rendering issue under pressure.\\n3. What would you improve if you had one more sprint?';
      } else if (action.id === 'eli5') {
          title = 'Explain it like an interviewer';
          type = 'Interview Prep';
-         body += 'Topic:\\nPlain-English explanation:\\nAnalogy:\\nFollow-up question I should expect:';
      }
      
      router.push(`/lms/notes/new?title=${encodeURIComponent(title)}&type=${encodeURIComponent(type)}&body=${encodeURIComponent(body)}`);
@@ -90,7 +113,7 @@ export default function LmsNotesPage() {
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1 tracking-tight">Notes</h1>
           <p className={LMS_PAGE_SUBTITLE}>
-            Learning engine — notes flow into quizzes, resume coaching, and career path natively.
+            Learning engine directly connected to your remote Database.
           </p>
         </div>
         <Link
@@ -119,7 +142,7 @@ export default function LmsNotesPage() {
 
       {hasAnyNotes ? (
         <section className="space-y-4">
-          <AISectionHeading title="From your notes (mock extraction)" />
+          <AISectionHeading title="From your notes (live backend)" />
           <div className={`${LMS_CARD_CLASS} grid grid-cols-1 md:grid-cols-3 gap-4 border-violet-50 transition-all duration-200 hover:shadow-md`}>
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Key concepts</p>
@@ -156,29 +179,6 @@ export default function LmsNotesPage() {
         </section>
       ) : null}
 
-      <section className="space-y-3">
-        <AISectionHeading title="Smart note linking (example)" />
-        <div className={`${LMS_CARD_CLASS} transition-all duration-200 hover:shadow-md`}>
-          <p className="text-sm font-bold text-gray-900">
-            When you write: <span className="text-violet-800">“{notesSmartLinkDemo.trigger}”</span>
-          </p>
-          <p className="mt-2 text-sm font-normal text-gray-500">Related hooks trigger organically:</p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {notesSmartLinkDemo.related.map((r) => (
-              <li key={r.label}>
-                <Link
-                  href={r.href}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 transition-all duration-200 hover:border-[#28A8E1]/40 hover:shadow-sm"
-                >
-                  <Link2 className="h-3.5 w-3.5 text-gray-400" strokeWidth={2} />
-                  {r.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
       <section className="space-y-4">
         <h2 className={LMS_SECTION_TITLE}>Recent</h2>
         
@@ -211,7 +211,12 @@ export default function LmsNotesPage() {
            </div>
         )}
 
-        {!hasAnyNotes ? (
+        {loading ? (
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><LmsSkeleton lines={3} /></div>
+             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><LmsSkeleton lines={3} /></div>
+           </div>
+        ) : !hasAnyNotes ? (
            // Global Empty State
           <div className={`${LMS_CARD_CLASS} text-center py-14 px-6 border-dashed border-2 border-gray-200 transition-all duration-200 hover:shadow-md`}>
             <StickyNote className="h-12 w-12 mx-auto text-gray-300 mb-4" strokeWidth={1.5} />

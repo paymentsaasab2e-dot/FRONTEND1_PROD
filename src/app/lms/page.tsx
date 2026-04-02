@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -22,6 +23,7 @@ import {
 import { useLmsOverlay } from './components/overlays/LmsOverlayProvider';
 import { useLmsState } from './state/LmsStateProvider';
 import { useLmsToast } from './components/ux/LmsToastProvider';
+import { fetchLmsDashboard } from './api/client';
 import {
   dashboardPrimaryInsight,
   dashboardNextActions,
@@ -78,6 +80,23 @@ export default function LmsDashboardPage() {
   const toast = useLmsToast();
   const { state, registerEvent, unregisterEvent, addPlannedItem, setLastActiveCourseId } = useLmsState();
 
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await fetchLmsDashboard();
+        setDashboardData(data);
+      } catch (err) {
+        console.error('Failed to fetch dashboard data', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   const quizScores = Object.values(state.quizAttempts);
   const quizAvg =
     quizScores.length > 0
@@ -86,29 +105,31 @@ export default function LmsDashboardPage() {
   const lowestQuiz = quizScores.length > 0 ? Math.min(...quizScores.map((quiz) => quiz.score)) : null;
 
   const compositeReadiness =
-    quizAvg !== null ? Math.round((careerAITarget.readinessScore + quizAvg) / 2) : careerAITarget.readinessScore;
+    dashboardData?.readinessScore ?? (quizAvg !== null ? Math.round((careerAITarget.readinessScore + quizAvg) / 2) : careerAITarget.readinessScore);
 
-  const hasSavedResume = state.resumeDraft.updatedAtLabel !== 'Not saved yet';
+  const hasSavedResume = state.resumeDraft.updatedAtLabel !== 'Not saved yet' || !!dashboardData?.resumeStrength;
   const resumeExperienceCount = Array.isArray(state.resumeDraft?.sections?.experience)
     ? state.resumeDraft.sections.experience.length
     : 0;
-  const compositeResumeStrength = hasSavedResume ? Math.min(65 + resumeExperienceCount * 15, 98) : 20;
+  const compositeResumeStrength = dashboardData?.resumeStrength ?? (hasSavedResume ? Math.min(65 + resumeExperienceCount * 15, 98) : 20);
 
-  const trackedCareerSteps = state.careerPath.started ? state.careerPath.completedStepIds.length : 0;
-  const activityCount = state.registeredEventIds.length + state.notes.length + trackedCareerSteps + quizScores.length;
-  const compositeWeeklyGoal = activityCount;
+  const trackedCareerSteps = state.careerPath.started ? state.careerPath.completedStepIds.length : (dashboardData?.coursesCompleted || 0);
+  const activityCount = (dashboardData?.eventsAttended || 0) + (dashboardData?.quizzesTaken || 0) + (dashboardData?.coursesEnrolled || 0);
+  const compositeWeeklyGoal = dashboardData?.activityStreak ?? activityCount;
 
-  const activeCourseId = state.lastActiveCourseId;
-  const activeCourseProgress = activeCourseId ? state.courseProgress[activeCourseId] ?? 0 : 0;
-  const hasActiveCourse = activeCourseId !== null && activeCourseProgress > 0;
+  const activeCourseId = state.lastActiveCourseId || dashboardData?.activeCourse?.courseId;
+  const activeCourseProgress = activeCourseId ? state.courseProgress[activeCourseId] ?? (dashboardData?.activeCourse?.progress || 0) : 0;
+  const hasActiveCourse = activeCourseId !== null && (activeCourseProgress > 0 || !!dashboardData?.activeCourse);
 
-  let dynamicCoachRec = dashboardPrimaryInsight.recommendation;
-  if (lowestQuiz !== null && lowestQuiz < 60) {
-    dynamicCoachRec = 'Your recent quiz scores reveal a blindspot. Prioritize the related topics in the Career Path.';
-  } else if (!hasSavedResume) {
-    dynamicCoachRec = 'Your resume remains untouched. Set up the foundational block first to unlock better targeting.';
-  } else if (!state.careerPath.started) {
-    dynamicCoachRec = 'Your learning is unguided. Start a Career Path to aggregate your actions into measurable bounds.';
+  let dynamicCoachRec = dashboardData?.aiInsight || dashboardPrimaryInsight.recommendation;
+  if (!dashboardData) {
+    if (lowestQuiz !== null && lowestQuiz < 60) {
+      dynamicCoachRec = 'Your recent quiz scores reveal a blindspot. Prioritize the related topics in the Career Path.';
+    } else if (!hasSavedResume) {
+      dynamicCoachRec = 'Your resume remains untouched. Set up the foundational block first to unlock better targeting.';
+    } else if (!state.careerPath.started) {
+      dynamicCoachRec = 'Your learning is unguided. Start a Career Path to aggregate your actions into measurable bounds.';
+    }
   }
 
   const dynamicScores = [
@@ -117,25 +138,28 @@ export default function LmsDashboardPage() {
       title: 'Role readiness',
       score: compositeReadiness,
       supportingText:
-        quizAvg !== null
+        dashboardData ? 'Aggregated from your courses, quizzes, and career progress.' :
+        (quizAvg !== null
           ? `Averaged dynamically with ${quizScores.length} real quiz attempts.`
-          : 'Mock baseline. Take quizzes to shift this value.',
+          : 'Mock baseline. Take quizzes to shift this value.'),
       visual: 'ring' as const,
     },
     {
       id: 'resume',
       title: 'Resume strength',
       score: compositeResumeStrength,
-      supportingText: hasSavedResume
+      supportingText: dashboardData ? 'Computed from your AI-enhanced professional profile.' :
+        (hasSavedResume
         ? `Evaluated around ${resumeExperienceCount} experience entries in your current draft.`
-        : 'Resume empty. Build the foundation first.',
+        : 'Resume empty. Build the foundation first.'),
       visual: 'ring' as const,
     },
     {
       id: 'velocity',
       title: 'Weekly activity',
       score: compositeWeeklyGoal,
-      supportingText: `Tracking ${compositeWeeklyGoal} interactions across quizzes, notes, events, and career progress.`,
+      supportingText: dashboardData ? `You have maintained an activity streak for ${compositeWeeklyGoal} days.` :
+        `Tracking ${compositeWeeklyGoal} interactions across quizzes, notes, events, and career progress.`,
       visual: 'bar' as const,
     },
   ];
@@ -184,6 +208,23 @@ export default function LmsDashboardPage() {
       size: 'md',
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 pb-10">
+        <div className="min-w-0">
+          <div className="h-10 w-48 animate-pulse rounded-lg bg-gray-200" />
+          <div className="mt-2 h-4 w-96 animate-pulse rounded-lg bg-gray-100" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 animate-pulse rounded-2xl bg-gray-100" />
+          ))}
+        </div>
+        <div className="h-64 animate-pulse rounded-2xl bg-gray-50" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-10">

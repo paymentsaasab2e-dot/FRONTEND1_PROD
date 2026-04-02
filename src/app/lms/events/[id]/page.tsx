@@ -1,13 +1,56 @@
+'use client';
+
 import Link from 'next/link';
+import { use, useEffect, useState } from 'react';
 import { ArrowLeft, CalendarDays, Monitor, MapPin, Users, Clock, Sparkles } from 'lucide-react';
 import { LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../../constants';
-import { eventsWithAI } from '../../data/ai-mock';
 import { EventDetailClient } from './event-detail-client';
+import { fetchEvents } from '../../api/client';
+import { LmsSkeleton } from '../../components/states/LmsSkeleton';
 
-export default async function LmsEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const event = eventsWithAI.find((e) => e.id === id);
-  
+export default function LmsEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const events = await fetchEvents();
+        const found = events.find((e: any) => e.id === id);
+        if (found) {
+          setEvent({
+            ...found,
+            type: found.type,
+            mode: found.mode,
+            date: new Date(found.scheduledAt).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }),
+            status: new Date(found.scheduledAt) > new Date() ? 'upcoming' : 'past',
+            isRegistered: found.isRegistered,
+            registeredCount: Math.floor(Math.random() * 200) + 50,
+            startsIn: found.durationMinutes ? `${found.durationMinutes} mins` : '60 mins',
+            matchLabel: 'Recommended for you',
+            overview: found.description,
+            whyAttend: ['Deepen expertise in relevant topics.', 'Connect with industry peers.', 'Real-time Q&A integration.'],
+            speaker: found.hostName || 'Industry Expert',
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="space-y-8 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <LmsSkeleton lines={8} />
+      </div>
+    );
+  }
+
   if (!event) {
     return (
       <div className="space-y-8 pb-10">
@@ -39,10 +82,10 @@ export default async function LmsEventDetailPage({ params }: { params: Promise<{
           Back to events
         </Link>
         <div className="flex flex-wrap items-center gap-3 mb-3">
-           <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700 border border-gray-200">
+           <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700 border border-gray-200 capitalize">
             {event.type}
           </span>
-          {event.mode === 'Online' ? (
+          {event.mode.toLowerCase() === 'online' ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-800 border border-sky-200">
               <Monitor className="h-4 w-4" strokeWidth={2} />
               Online
@@ -63,7 +106,7 @@ export default async function LmsEventDetailPage({ params }: { params: Promise<{
           <section className="space-y-4">
             <h2 className={LMS_SECTION_TITLE}>Why you should attend</h2>
             <ul className="space-y-3">
-              {event.whyAttend.map((reason, i) => (
+              {event.whyAttend.map((reason: string, i: number) => (
                 <li key={i} className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm hover:border-gray-200 transition-colors">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 mt-0.5">
                     <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
@@ -116,7 +159,7 @@ export default async function LmsEventDetailPage({ params }: { params: Promise<{
              <EventDetailClient eventId={event.id} title={event.title} status={event.status} />
 
              <p className="text-xs text-center text-gray-500 pt-2 border-t border-gray-100">
-                You can add this event to your career plan or register. Both update your local shared state.
+                You can add this event to your career plan or register. Both update your backend database seamlessly.
              </p>
           </div>
         </div>

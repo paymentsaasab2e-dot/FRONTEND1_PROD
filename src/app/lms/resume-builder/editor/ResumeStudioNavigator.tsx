@@ -1,6 +1,7 @@
 'use client';
 
 import { LMS_CARD_CLASS } from '../../constants';
+import type { LmsResumeAnalysisResult } from '../../state/LmsStateProvider';
 import {
   SECTION_DEFINITIONS,
   SectionStatusIcon,
@@ -16,6 +17,7 @@ export function ResumeStudioNavigator({
   atsReadiness,
   onSelect,
   sectionStates,
+  analysis,
 }: {
   activeSection: SectionId;
   completionState: DerivedSectionState;
@@ -24,6 +26,7 @@ export function ResumeStudioNavigator({
   atsReadiness: number;
   onSelect: (id: SectionId) => void;
   sectionStates: Record<SectionId, DerivedSectionState>;
+  analysis?: LmsResumeAnalysisResult;
 }) {
   return (
     <div className={`${LMS_CARD_CLASS} border-slate-200/90 bg-white shadow-[0_18px_48px_-32px_rgba(15,23,42,0.24)]`}>
@@ -36,7 +39,7 @@ export function ResumeStudioNavigator({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:min-w-[420px]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[560px]">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Studio progress</p>
             <p className="mt-2 text-lg font-bold text-slate-900">{editorProgress}%</p>
@@ -45,17 +48,22 @@ export function ResumeStudioNavigator({
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Keyword coverage</p>
             <p className="mt-2 text-lg font-bold text-slate-900">{keywordCoverage}%</p>
-            <p className="mt-1 text-xs text-slate-500">Role-relevant skills mapped</p>
+            <p className="mt-1 text-xs text-slate-500">Role-relevant skills</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">ATS readiness</p>
             <p className="mt-2 text-lg font-bold text-slate-900">{atsReadiness}%</p>
-            <p className="mt-1 text-xs text-slate-500">Document confidence snapshot</p>
+            <p className="mt-1 text-xs text-slate-500">Document confidence</p>
+          </div>
+          <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 shadow-[0_12px_24px_-16px_rgba(40,168,225,0.4)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-700">AI Confidence</p>
+            <p className="mt-2 text-lg font-bold text-sky-900">{analysis?.readinessScore ?? '??'}%</p>
+            <p className="mt-1 text-xs text-sky-600 font-medium">Recruiter Simulation</p>
           </div>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {SECTION_DEFINITIONS.map((section) => {
           const stateForSection =
             section.id === 'completion' ? completionState : sectionStates[section.id];

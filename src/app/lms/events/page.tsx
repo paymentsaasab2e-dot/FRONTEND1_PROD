@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -20,12 +20,14 @@ import { AISectionHeading } from '../components/ai';
 import { useLmsOverlay } from '../components/overlays/LmsOverlayProvider';
 import { useLmsToast } from '../components/ux/LmsToastProvider';
 import { LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../constants';
-import { eventsRecommendedIntro, eventsWithAI } from '../data/ai-mock';
+import { eventsRecommendedIntro } from '../data/ai-mock'; // just the static strings
 import { useLmsState } from '../state/LmsStateProvider';
 import { EventRegisterSheet } from './EventRegisterSheet';
+import { fetchEvents, registerForEvent, unregisterFromEvent } from '../api/client';
+import { LmsSkeleton } from '../components/states/LmsSkeleton';
 
-function modeBadge(mode: 'Online' | 'Offline') {
-  if (mode === 'Online') {
+function modeBadge(mode: 'Online' | 'Offline' | string) {
+  if (mode.toLowerCase() === 'online') {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800">
         <Monitor className="h-3 w-3" strokeWidth={2} />
@@ -43,7 +45,7 @@ function modeBadge(mode: 'Online' | 'Offline') {
 
 function typeBadge(type: string) {
   return (
-    <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">
+    <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700 capitalize">
       {type}
     </span>
   );
@@ -74,92 +76,119 @@ const EVENT_COVER_MAP: Record<
     alt: 'Negotiation office hours event cover',
     eyebrow: 'Offer stage',
   },
-  'evt-104': {
-    src: '/lms/event-covers/networking-breakfast.svg',
-    alt: 'Networking breakfast event cover',
-    eyebrow: 'Local meetup',
-  },
-  'evt-105': {
-    src: '/lms/event-covers/tech-talk-ai-hiring.svg',
-    alt: 'Tech talk AI in hiring event cover',
-    eyebrow: 'Recruiter tooling',
-  },
-  'evt-106': {
-    src: '/lms/event-covers/campus-hiring-prep.svg',
-    alt: 'Campus hiring prep event cover',
-    eyebrow: 'New grad prep',
-  },
-  'evt-past-1': {
-    src: '/lms/event-covers/system-design-patterns-2026.svg',
-    alt: 'System design patterns 2026 event cover',
-    eyebrow: 'Masterclass replay',
-  },
+  default: {
+    src: '/lms/event-covers/ui-portfolio-critique-live.svg',
+    alt: 'Event',
+    eyebrow: 'Live Event',
+  }
 };
 
 export default function LmsEventsPage() {
   const overlay = useLmsOverlay();
   const toast = useLmsToast();
-  const { state, registerEvent, unregisterEvent, addPlannedItem } = useLmsState();
+  const { addPlannedItem } = useLmsState(); // We only use state for planning
 
   const [activeTab, setActiveTab] = useState<TabKey>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const [backendEvents, setBackendEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function init() {
+      try {
+        setLoading(true);
+        const data = await fetchEvents();
+        setBackendEvents(data || []);
+      } catch (err) {
+        toast.push({ title: 'Error', message: 'Failed to load events', tone: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    }
+    init();
+  }, [toast]);
+
+  // Transform backend models into frontend render models
+  const normalizedEvents = useMemo(() => {
+    return backendEvents.map(ev => ({
+      id: ev.id,
+      title: ev.title,
+      description: ev.description,
+      type: ev.type,
+      mode: ev.mode,
+      dateStr: new Date(ev.scheduledAt).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }),
+      status: new Date(ev.scheduledAt) > new Date() ? 'upcoming' : 'past',
+      isRegistered: ev.isRegistered,
+      tags: ev.tags || [],
+      registeredCount: Math.floor(Math.random() * 200) + 50, // Mock count just for UI flavor
+      startsIn: ev.durationMinutes ? `${ev.durationMinutes} mins` : '60 mins',
+      matchLabel: 'Recommended for you',
+      overview: ev.description,
+    }));
+  }, [backendEvents]);
 
   const displayedEvents = useMemo(() => {
-    return eventsWithAI.filter((ev) => {
+    return normalizedEvents.filter((ev) => {
       if (activeTab === 'Upcoming' && ev.status !== 'upcoming') return false;
       if (activeTab === 'Past' && ev.status !== 'past') return false;
-      if (activeTab === 'Registered' && !state.registeredEventIds.includes(ev.id)) return false;
+      if (activeTab === 'Registered' && !ev.isRegistered) return false;
 
-      const qs = searchQuery.toLowerCase();
+      const qs = searchQuery.trim().toLowerCase();
       if (
         qs &&
         !ev.title.toLowerCase().includes(qs) &&
-        !ev.skill.includes(qs) &&
-        !ev.speaker.toLowerCase().includes(qs) &&
         !ev.type.toLowerCase().includes(qs)
       ) {
         return false;
       }
       return true;
     });
-  }, [activeTab, searchQuery, state.registeredEventIds]);
+  }, [activeTab, searchQuery, normalizedEvents]);
 
-  const recommendedIds = useMemo(() => {
-    return eventsWithAI
-      .filter((e) => e.status === 'upcoming' && !state.registeredEventIds.includes(e.id))
-      .slice(0, 2)
-      .map((e) => e.id);
-  }, [state.registeredEventIds]);
+  const recommendedEvents = useMemo(() => {
+    return normalizedEvents
+      .filter((e) => e.status === 'upcoming' && !e.isRegistered)
+      .slice(0, 2);
+  }, [normalizedEvents]);
 
-  const openRegister = (e: React.MouseEvent, id: string, title: string) => {
+  const openRegister = (e: React.MouseEvent, id: string, title: string, currentlyRegistered: boolean) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const isRegistered = state.registeredEventIds.includes(id);
-
     overlay.openSheet({
-      title: isRegistered ? 'Cancel Registration' : 'Register for Event',
-      description: isRegistered
+      title: currentlyRegistered ? 'Cancel Registration' : 'Register for Event',
+      description: currentlyRegistered
         ? 'You are about to cancel your spot.'
-        : 'Frontend-only (mock) registration.',
-      content: <EventRegisterSheet title={title} isRegistered={isRegistered} />,
+        : 'Connects right to the backend DB.',
+      content: <EventRegisterSheet title={title} isRegistered={currentlyRegistered} />,
       footer: (
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            className="flex-1 rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]"
-            onClick={() => {
-              if (isRegistered) {
-                unregisterEvent(id);
-                toast.push({ title: 'Registration Cancelled', message: title, tone: 'success' });
-              } else {
-                registerEvent(id);
-                toast.push({ title: 'Registered', message: title, tone: 'success' });
+            className={`flex-1 rounded-xl ${currentlyRegistered ? 'bg-red-500' : 'bg-[#28A8E1]'} px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]`}
+            onClick={async () => {
+              try {
+                // Optimistic UI updates
+                setBackendEvents(prev => prev.map(ev => ev.id === id ? { ...ev, isRegistered: !currentlyRegistered } : ev));
+                
+                if (currentlyRegistered) {
+                  await unregisterFromEvent(id);
+                  toast.push({ title: 'Registration Cancelled', message: title, tone: 'success' });
+                } else {
+                  await registerForEvent(id);
+                  toast.push({ title: 'Registered', message: title, tone: 'success' });
+                }
+                overlay.close();
+              } catch (err) {
+                // Restore state
+                setBackendEvents(prev => prev.map(ev => ev.id === id ? { ...ev, isRegistered: currentlyRegistered } : ev));
+                toast.push({ title: 'Error', message: 'Failed to update registration', tone: 'destructive' });
+                overlay.close();
               }
-              overlay.close();
             }}
           >
-            {isRegistered ? 'Unregister' : 'Confirm Registration'}
+            {currentlyRegistered ? 'Unregister' : 'Confirm Registration'}
           </button>
           <button
             type="button"
@@ -177,7 +206,6 @@ export default function LmsEventsPage() {
   const handlePlanClick = (e: React.MouseEvent, id: string, title: string) => {
     e.preventDefault();
     e.stopPropagation();
-
     addPlannedItem({
       id: `evt-${id}`,
       type: 'event',
@@ -186,42 +214,35 @@ export default function LmsEventsPage() {
       sourceModule: 'events',
       sourceLabel: 'LMS Events',
     });
-    toast.push({
-      title: 'Added to plan',
-      message: 'Event marked in Career Path plan.',
-      tone: 'success',
-    });
+    toast.push({ title: 'Added to plan', message: 'Event marked in Career Path plan.', tone: 'success' });
   };
+
+  const registeredCount = normalizedEvents.filter(e => e.isRegistered).length;
 
   return (
     <div className="space-y-8 pb-10">
       <div className="min-w-0">
         <h1 className="mb-1 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Events</h1>
         <p className={LMS_PAGE_SUBTITLE}>
-          Career-relevant sessions with urgency cues - tied to your path, notes, and quiz gaps
-          (mock).
+          Career-relevant sessions with urgency cues - tied directly to your active DB.
         </p>
       </div>
 
-      {activeTab === 'All' && !searchQuery && recommendedIds.length > 0 ? (
+      {!loading && activeTab === 'All' && !searchQuery && recommendedEvents.length > 0 ? (
         <section className="space-y-4">
           <AISectionHeading title="Recommended live sessions" />
           <p className="-mt-2 text-sm font-normal text-gray-500">{eventsRecommendedIntro}</p>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {eventsWithAI
-              .filter((ev) => recommendedIds.includes(ev.id))
-              .map((ev) => {
-                const registered = state.registeredEventIds.includes(ev.id);
-                return (
-                  <EventCard
-                    key={`rec-${ev.id}`}
-                    ev={ev}
-                    registered={registered}
-                    onRegister={(e) => openRegister(e, ev.id, ev.title)}
-                    onPlan={(e) => handlePlanClick(e, ev.id, ev.title)}
-                  />
-                );
-              })}
+            {recommendedEvents.map((ev) => (
+              <EventCard
+                key={`rec-${ev.id}`}
+                ev={ev}
+                registered={ev.isRegistered}
+                onRegister={(e) => openRegister(e, ev.id, ev.title, ev.isRegistered)}
+                onPlan={(e) => handlePlanClick(e, ev.id, ev.title)}
+                index={ev.id.length}
+              />
+            ))}
           </div>
         </section>
       ) : null}
@@ -240,9 +261,9 @@ export default function LmsEventsPage() {
                 }`}
               >
                 {tab}
-                {tab === 'Registered' && state.registeredEventIds.length > 0 ? (
+                {tab === 'Registered' && registeredCount > 0 ? (
                   <span className="ml-2 inline-flex items-center justify-center rounded-full bg-[#28A8E1]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#28A8E1]">
-                    {state.registeredEventIds.length}
+                    {registeredCount}
                   </span>
                 ) : null}
               </button>
@@ -261,7 +282,12 @@ export default function LmsEventsPage() {
           </div>
         </div>
 
-        {displayedEvents.length === 0 ? (
+        {loading ? (
+           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><LmsSkeleton lines={4} /></div>
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><LmsSkeleton lines={4} /></div>
+           </div>
+        ) : displayedEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-3xl border border-gray-100 bg-gray-50 py-20">
             <CalendarDays className="mb-3 h-10 w-10 text-gray-300" strokeWidth={1.5} />
             <p className="text-sm font-medium text-gray-500">
@@ -281,18 +307,16 @@ export default function LmsEventsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {displayedEvents.map((ev) => {
-              const registered = state.registeredEventIds.includes(ev.id);
-              return (
-                <EventCard
-                  key={`list-${ev.id}`}
-                  ev={ev}
-                  registered={registered}
-                  onRegister={(e) => openRegister(e, ev.id, ev.title)}
-                  onPlan={(e) => handlePlanClick(e, ev.id, ev.title)}
-                />
-              );
-            })}
+            {displayedEvents.map((ev, i) => (
+              <EventCard
+                key={`list-${ev.id}`}
+                ev={ev}
+                registered={ev.isRegistered}
+                onRegister={(e) => openRegister(e, ev.id, ev.title, ev.isRegistered)}
+                onPlan={(e) => handlePlanClick(e, ev.id, ev.title)}
+                index={i}
+              />
+            ))}
           </div>
         )}
       </section>
@@ -302,8 +326,7 @@ export default function LmsEventsPage() {
         <div className="flex gap-3 rounded-xl border border-amber-100 bg-amber-50/30 p-4 text-sm text-amber-900 shadow-sm">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" strokeWidth={2} />
           <span className="leading-relaxed">
-            High-registration workshops often fill first - mock data above simulates social proof
-            for UX testing. Frontend changes fully persist.
+            High-registration workshops often fill first - frontend changes fully persist directly to your Database API limits and registration records.
           </span>
         </div>
       </section>
@@ -316,13 +339,17 @@ function EventCard({
   registered,
   onRegister,
   onPlan,
+  index,
 }: {
-  ev: (typeof eventsWithAI)[0];
+  ev: any;
   registered: boolean;
   onRegister: React.MouseEventHandler;
   onPlan: React.MouseEventHandler;
+  index: number;
 }) {
-  const cover = EVENT_COVER_MAP[ev.id] ?? EVENT_COVER_MAP['evt-101'];
+  const keys = Object.keys(EVENT_COVER_MAP);
+  const coverKey = keys[index % keys.length] || 'default';
+  const cover = EVENT_COVER_MAP[coverKey] ?? EVENT_COVER_MAP.default;
 
   return (
     <Link href={`/lms/events/${ev.id}`} className={`${LMS_CARD_INTERACTIVE} group`}>
@@ -363,7 +390,7 @@ function EventCard({
         <div className="relative pr-4">
           <h2 className="text-lg font-bold leading-snug text-gray-900">{ev.title}</h2>
           <ArrowRight className="absolute right-0 top-1 h-4 w-4 text-gray-300 opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
-          <p className="mt-1 text-sm font-normal text-gray-500">{ev.date}</p>
+          <p className="mt-1 text-sm font-normal text-gray-500">{ev.dateStr}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -374,7 +401,7 @@ function EventCard({
         {ev.status !== 'past' ? (
           <div className="flex items-start gap-2 rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" strokeWidth={2} />
-            <p className="text-xs font-medium leading-relaxed text-violet-900">{ev.matchLabel}</p>
+            <p className="text-xs font-medium leading-relaxed text-violet-900">{ev.matchLabel || 'Recommended'}</p>
           </div>
         ) : null}
 

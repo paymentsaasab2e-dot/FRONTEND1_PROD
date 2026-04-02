@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { interviewData as initialInterviewData, generateMockQuestions } from '../data/mockInterviewData';
 import type { InterviewPrepData, QuestionSet, MockSessionResult } from '../types/interview.types';
+import { fetchInterviewPrep, startInterviewSession } from '@/app/lms/api/client';
 
 type MockConfig = {
   difficulty: string;
@@ -17,17 +18,67 @@ export function useInterviewPrep() {
   // We persist subsets of interview prep state in sessionStorage/localStorage for the Mock
   const [sessionResults, setSessionResults] = useState<MockSessionResult[]>([]);
   const [savedSets, setSavedSets] = useState<QuestionSet[]>([]);
-  
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
+    const load = async () => {
+      try {
+        const sessions = await fetchInterviewPrep();
+        if (sessions && Array.isArray(sessions)) {
+          // Map backend sessions to the format expected by the frontend
+          const mappedResults: MockSessionResult[] = sessions.map((s: any) => ({
+             id: s.id,
+             config: {
+               role: s.roleFocus || 'Frontend Developer',
+               difficulty: s.difficulty || 'Intermediate'
+             },
+             answers: {}, // Backend doesn't store full answers yet in this summary
+             createdAt: new Date(s.createdAt).getTime(),
+             strengths: s.feedback?.strengths || [],
+             improvements: s.feedback?.improvements || [],
+             gaps: []
+          }));
+          setSessionResults(mappedResults);
+          
+          // Update overall readiness if we have results
+          if (mappedResults.length > 0) {
+             const latest = mappedResults[0];
+             setData(prev => ({
+               ...prev,
+               readiness: Math.min(100, 65 + mappedResults.length * 5),
+               confidenceScore: Math.min(100, 70 + mappedResults.length * 3),
+               feedback: {
+                 strengths: latest.strengths,
+                 improvements: latest.improvements
+               }
+             }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load interview sessions', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    load();
+    
+    // Also load local sets if any (for non-persisted practice sets)
     try {
       const storedSets = localStorage.getItem('ip:sets');
       if (storedSets) setSavedSets(JSON.parse(storedSets));
-      const storedResults = localStorage.getItem('ip:sessions');
-      if (storedResults) setSessionResults(JSON.parse(storedResults));
     } catch {}
   }, []);
 
-  const onStartMock = useCallback(() => {
+  const onStartMock = useCallback(async () => {
+    try {
+      await startInterviewSession({
+        type: 'MOCK',
+        topic: `${mockConfig.role} - ${mockConfig.difficulty}`
+      });
+    } catch (err) {
+       // Silently fail or handle error
+    }
     return mockConfig;
   }, [mockConfig]);
 
@@ -96,5 +147,6 @@ export function useInterviewPrep() {
     onGenerateQuestions,
     onAddToPlan,
     applyScoreUpdate,
+    isLoading
   };
 }

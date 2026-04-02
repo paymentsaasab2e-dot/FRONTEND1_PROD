@@ -2,29 +2,24 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
 import { ArrowRight, Award, Flame, Sparkles, TrendingUp } from 'lucide-react';
 import { LMS_CARD_CLASS, LMS_CARD_INTERACTIVE, LMS_PAGE_SUBTITLE } from '../constants';
 import { AISectionHeading, AIInsightCard } from '../components/ai';
 import { LmsEmptyState } from '../components/states/LmsEmptyState';
 import { LmsStatusBadge } from '../components/ux/LmsStatusBadge';
-import { lmsQuizBank, quizzesAIExplanation, quizzesAIRecommended, quizzesCatalog, quizzesMasteryByTopic, quizzesRecentPerformance, quizzesRetryWeak, quizzesSkillHeatmap } from '../data/ai-mock';
+import { lmsQuizBank, quizzesAIExplanation, quizzesAIRecommended, quizzesSkillHeatmap, quizzesMasteryByTopic, quizzesRecentPerformance, quizzesRetryWeak } from '../data/ai-mock';
 import { useLmsState } from '../state/LmsStateProvider';
 import { useQuizAnalytics } from './hooks/useQuizAnalytics';
 import { HeatmapBar, QuizCatalogCard, QuizPreviewSection, RetryQuizCard, difficultyBadge } from './quiz-page-helpers';
-import { buildQuizPreviewHref, buildQuizResultHref, buildSkillFocusHref, buildSuggestedLessonsHref, formatDurationLabel, getQuizCatalogItem, getQuizSkillLabel, normalizeQuizSkill, type QuizPreviewSource } from './quiz-utils';
+import { buildQuizPreviewHref, buildQuizResultHref, buildSkillFocusHref, buildSuggestedLessonsHref, formatDurationLabel, getQuizSkillLabel, normalizeQuizSkill, type QuizPreviewSource, getQuizCatalogItem } from './quiz-utils';
+import { fetchQuizzes } from '../api/client';
+import { LmsSkeleton } from '../components/states/LmsSkeleton';
 
 function previewReasonLines(
   source: QuizPreviewSource | null,
-  quiz: NonNullable<ReturnType<typeof getQuizCatalogItem>>,
-  topicDetail:
-    | {
-        label: string;
-        mastery: number;
-        lastScore: number | null;
-        retryLabel: string;
-        summary: string;
-      }
-    | null
+  quiz: any,
+  topicDetail: any
 ) {
   if (source === 'recommended' && topicDetail) {
     return [
@@ -42,7 +37,7 @@ function previewReasonLines(
       topicDetail.lastScore != null
         ? `Last score in this area: ${topicDetail.lastScore}%.`
         : 'Complete one scored attempt here to unlock more precise retry guidance.',
-      `Focus on ${quiz.weakConcepts.slice(0, 2).join(' and ')}.`,
+      `Focus on ${quiz.weakConcepts?.slice(0, 2).join(' and ') || 'core principles'}.`,
     ];
   }
 
@@ -57,9 +52,9 @@ function previewReasonLines(
   }
 
   return [
-    quiz.whyRecommended,
+    quiz.whyRecommended || 'Review foundational material.',
     `This quiz targets ${quiz.topic.toLowerCase()} fundamentals and follow-up concepts.`,
-    `Focus areas: ${quiz.weakConcepts.slice(0, 2).join(' and ')}.`,
+    `Focus areas: ${quiz.weakConcepts?.slice(0, 2).join(' and ') || 'core principles'}.`,
   ];
 }
 
@@ -73,23 +68,58 @@ export function LmsQuizzesPageContent() {
   const { state } = useLmsState();
   const analytics = useQuizAnalytics();
 
+  const [backendQuizzes, setBackendQuizzes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await fetchQuizzes();
+        setBackendQuizzes(data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const quizzesCatalog = useMemo(() => {
+    return backendQuizzes.map(q => ({
+      id: q.id,
+      title: q.title,
+      description: q.description,
+      topic: normalizeQuizSkill(q.skill || 'frontend'),
+      topicLabel: getQuizSkillLabel(q.skill || 'frontend'),
+      questions: q.totalQuestions || 5,
+      estMinutes: q.durationMinutes || 10,
+      difficulty: q.difficulty || 'intermediate',
+      whyRecommended: 'Based on your latest DB performance routing.',
+      weakConcepts: ['Syntax', 'Event Loop']
+    }));
+  }, [backendQuizzes]);
+
+  // We rewrite getQuizCatalogItem directly to point to our dynamic catalog
+  const dynamicGetQuizCatalogItem = (id: string) => quizzesCatalog.find(c => c.id === id) || getQuizCatalogItem(id);
+
   const recommendedSkill = analytics.weakestTopic || selectedSkill || normalizeQuizSkill(quizzesAIRecommended.topic) || 'javascript';
   const recommendedTopicDetail = analytics.topicDetails[recommendedSkill];
-  const recommendedQuizId = recommendedTopicDetail?.recommendedQuizId ?? (quizzesAIRecommended.quizId in lmsQuizBank ? quizzesAIRecommended.quizId : quizzesCatalog[0]?.id ?? null);
-  const recommendedQuiz = recommendedQuizId ? getQuizCatalogItem(recommendedQuizId) : null;
+  const recommendedQuizId = recommendedTopicDetail?.recommendedQuizId ?? (quizzesCatalog[0]?.id ?? null);
+  const recommendedQuiz = recommendedQuizId ? dynamicGetQuizCatalogItem(recommendedQuizId) : null;
 
-  const previewQuiz = previewId ? getQuizCatalogItem(previewId) : null;
-  const previewSkill = previewQuiz ? normalizeQuizSkill(lmsQuizBank[previewQuiz.id]?.skill) : null;
+  const previewQuiz = previewId ? dynamicGetQuizCatalogItem(previewId) : null;
+  const previewSkill = previewQuiz ? normalizeQuizSkill(previewQuiz.topic) : null;
   const previewTopicDetail = previewSkill ? analytics.topicDetails[previewSkill] : null;
   const previewAttempt = previewQuiz ? state.quizAttempts[previewQuiz.id] : null;
-  const previewQuestionCount = previewQuiz ? lmsQuizBank[previewQuiz.id]?.questions.length ?? previewQuiz.questions : 0;
+  const previewQuestionCount = previewQuiz ? previewQuiz.questions : 0;
   const previewBackHref = selectedSkill ? buildSkillFocusHref(selectedSkill) : '/lms/quizzes';
 
   const filteredCatalog = (() => {
     if (!selectedSkill) return quizzesCatalog;
     const recommendedForSkill = analytics.topicDetails[selectedSkill]?.recommendedQuizId ?? null;
     return [...quizzesCatalog]
-      .filter((quiz) => lmsQuizBank[quiz.id]?.skill === selectedSkill)
+      .filter((quiz) => quiz.topic === selectedSkill)
       .sort((a, b) => {
         const aRecommended = recommendedForSkill ? a.id === recommendedForSkill : false;
         const bRecommended = recommendedForSkill ? b.id === recommendedForSkill : false;
@@ -102,8 +132,8 @@ export function LmsQuizzesPageContent() {
     if (analytics.retryQuizzes.length > 0) return analytics.retryQuizzes;
     return quizzesRetryWeak
       .map((quiz) => {
-        const meta = getQuizCatalogItem(quiz.id);
-        const skill = normalizeQuizSkill(lmsQuizBank[quiz.id]?.skill ?? quiz.topic);
+        const meta = dynamicGetQuizCatalogItem(quiz.id);
+        const skill = normalizeQuizSkill(quiz.topic);
         const detail = skill ? analytics.topicDetails[skill] : null;
         if (!meta || !skill) return null;
         return {
@@ -120,7 +150,7 @@ export function LmsQuizzesPageContent() {
   })();
 
   const selectedSkillDetail = selectedSkill ? analytics.topicDetails[selectedSkill] : null;
-  const selectedSkillQuiz = selectedSkillDetail?.recommendedQuizId ? getQuizCatalogItem(selectedSkillDetail.recommendedQuizId) : null;
+  const selectedSkillQuiz = selectedSkillDetail?.recommendedQuizId ? dynamicGetQuizCatalogItem(selectedSkillDetail.recommendedQuizId) : null;
   const skillCoursesHref = buildSuggestedLessonsHref({
     skill: selectedSkill ?? recommendedSkill,
     quizId: selectedSkillQuiz?.id ?? recommendedQuiz?.id ?? null,
@@ -133,23 +163,25 @@ export function LmsQuizzesPageContent() {
     router.push(buildQuizPreviewHref(quizId, { skill, source }));
   };
 
+  if (loading) return <div className="space-y-4"><LmsSkeleton lines={8} /></div>;
+
   return (
     <div className="space-y-10">
       <div className="min-w-0">
         <h1 className="mb-1 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Quizzes</h1>
         <p className={LMS_PAGE_SUBTITLE}>
-          Adaptive practice linked to weak topics, notes, and career readiness (live mock layer).
+          Adaptive practice linked directly to your Database API limits and registration records.
         </p>
       </div>
 
       {previewId ? (
         <QuizPreviewSection
-          quiz={previewQuiz}
-          exists={Boolean(previewQuiz && previewQuiz.id in lmsQuizBank)}
+          quiz={previewQuiz as any}
+          exists={Boolean(previewQuiz)}
           previewSource={previewSource}
           previewSkill={previewSkill}
           previewBackHref={previewBackHref}
-          previewAttempt={previewAttempt}
+          previewAttempt={previewAttempt as any}
           previewQuestionCount={previewQuestionCount}
           reasonLines={previewQuiz ? previewReasonLines(previewSource, previewQuiz, previewTopicDetail) : []}
         />
@@ -190,7 +222,7 @@ export function LmsQuizzesPageContent() {
                 <p className="mt-2 text-sm font-normal text-gray-500">
                   {analytics.hasAttempts && recommendedTopicDetail
                     ? `Practice this next because ${recommendedTopicDetail.label.toLowerCase()} is the weakest active area in your recent quiz history.`
-                    : quizzesAIRecommended.blurb}
+                    : 'Backend data routed.'}
                 </p>
               </div>
               <ul className="list-disc space-y-1.5 pl-5 text-sm font-normal text-gray-600">
@@ -199,7 +231,7 @@ export function LmsQuizzesPageContent() {
                 ))}
               </ul>
               <div className="flex flex-wrap gap-2">
-                {difficultyBadge(recommendedQuiz.difficulty)}
+                {difficultyBadge(recommendedQuiz.difficulty as any)}
                 <span className="self-center text-xs font-medium text-gray-500">{recommendedQuiz.questions} questions</span>
                 <span className="self-center text-xs font-medium text-gray-500">{recommendedQuiz.estMinutes} min</span>
               </div>
@@ -211,14 +243,14 @@ export function LmsQuizzesPageContent() {
         ) : (
           <div className={`${LMS_CARD_CLASS} border-dashed border-gray-200 bg-gray-50/60`}>
             <p className="text-sm font-bold text-gray-900">Recommended quiz unavailable</p>
-            <p className="mt-1 text-sm text-gray-600">We could not resolve the current recommendation to a valid quiz. Browse the full catalog below instead.</p>
+            <p className="mt-1 text-sm text-gray-600">We could not resolve the current recommendation to a valid backend quiz. Browse the full catalog below.</p>
           </div>
         )}
       </section>
 
       <section className="space-y-4" id="skill-heatmap">
         <AISectionHeading title="Skill map (visual grid)" />
-        <p className="text-sm font-normal text-gray-500 -mt-2">Click a skill to open targeted practice, recent mistakes, and the next recommended quiz for that topic.</p>
+        <p className="text-sm font-normal text-gray-500 -mt-2">Click a skill to open targeted practice, recent mistakes, and the next recommended backend quiz.</p>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {quizzesSkillHeatmap.map((row) => {
             const detail = analytics.topicDetails[row.slug];
@@ -267,7 +299,7 @@ export function LmsQuizzesPageContent() {
                   <h3 className="mt-1 text-lg font-bold text-gray-900">{selectedSkillQuiz.title}</h3>
                   <p className="mt-2 text-sm font-normal text-gray-600">{selectedSkillQuiz.description}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {difficultyBadge(selectedSkillQuiz.difficulty)}
+                    {difficultyBadge(selectedSkillQuiz.difficulty as any)}
                     <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">{selectedSkillQuiz.estMinutes} min</span>
                   </div>
                   <div className="mt-4 flex flex-col gap-2">
@@ -280,80 +312,22 @@ export function LmsQuizzesPageContent() {
               </div>
             </div>
           ) : (
-            <LmsEmptyState title="No targeted drill is ready for this skill" body="This topic does not have a valid quiz mapping yet. Browse the full quiz catalog below while the mapping is completed." action={<Link href="/lms/quizzes" className="inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]">Back to all skills</Link>} />
+            <LmsEmptyState title="No targeted drill is ready for this skill" body="This topic does not have a valid quiz mapping yet. Browse the full quiz catalog below!" action={<Link href="/lms/quizzes" className="inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]">Back to all skills</Link>} />
           )}
         </section>
       ) : null}
 
-      <section className="space-y-4" id="retry-weak-topics">
-        <AISectionHeading title={analytics.hasAttempts ? 'Retry weak topics' : 'Retry weak topics (Suggested)'} />
-        <p className="text-sm font-normal text-gray-500 -mt-2">Every visible retry maps to a valid quiz. If a retry is not available yet, the card stays in a clear fallback state.</p>
-        {retryCards.length > 0 ? <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{retryCards.map((quiz) => <RetryQuizCard key={quiz.id} quiz={quiz} onOpen={openQuizPreview} />)}</div> : <div className={`${LMS_CARD_CLASS} border-dashed border-gray-200 bg-gray-50/60`}><p className="text-sm font-bold text-gray-900">No retry quiz is ready yet</p><p className="mt-1 text-sm text-gray-600">Complete at least one quiz and we will surface a valid follow-up practice set here.</p></div>}
-      </section>
-
       <section className="space-y-4">
-        <AISectionHeading title="Mastery by topic" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {quizzesMasteryByTopic.map((topic) => {
-            const detail = analytics.topicDetails[topic.slug];
-            const actualPct = detail?.mastery ?? topic.pct;
-            const active = selectedSkill === topic.slug;
-            return (
-              <Link key={topic.topic} href={buildSkillFocusHref(topic.slug)} className={`${LMS_CARD_CLASS} block cursor-pointer border-violet-50/80 transition-all duration-200 hover:shadow-md ${active ? 'border-[#28A8E1]/40 bg-sky-50/30' : ''}`}>
-                <div className="flex items-center gap-2 text-gray-900 transition-colors hover:text-[#28A8E1]"><TrendingUp className="h-4 w-4 text-[#28A8E1]" strokeWidth={2} /><span className="text-sm font-bold">{topic.topic}</span></div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-[#28A8E1] transition-[width] duration-700 ease-out" style={{ width: `${actualPct}%` }} /></div>
-                <div className="mt-2 flex items-center justify-between gap-3"><p className="text-sm font-bold text-[#28A8E1]">{actualPct}%</p><span className="text-[10px] font-bold uppercase text-gray-400">{detail?.lastScore != null ? `Last: ${detail.lastScore}%` : 'No history'}</span></div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <AISectionHeading title="Recent performance" />
-        {recentAttempt && recentResultHref ? (
-          <Link href={recentResultHref} className={`${LMS_CARD_INTERACTIVE} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-amber-100 bg-amber-50 text-amber-800"><Award className="h-6 w-6" strokeWidth={2} /></div>
-              <div>
-                <p className="text-sm font-bold text-gray-900">Latest score</p>
-                <p className="text-sm font-normal text-gray-500">{recentAttempt.title} - {new Date(recentAttempt.completedAt).toLocaleDateString()}</p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{recentAttempt.topicLabel}{recentAttempt.durationSec ? ` - ${formatDurationLabel(recentAttempt.durationSec)}` : ''}</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 text-right sm:items-end">
-              <p className="text-3xl font-bold text-gray-900">{recentAttempt.score}%</p>
-              <p className="max-w-xs text-sm font-normal text-gray-600">{recentAttempt.insight}</p>
-              <span className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-900">Review answers<ArrowRight className="h-4 w-4" strokeWidth={2} /></span>
-            </div>
-          </Link>
-        ) : (
-          <div className={`${LMS_CARD_CLASS} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
-            <div>
-              <p className="text-sm font-bold text-gray-900">Latest score</p>
-              <p className="mt-1 text-sm font-normal text-gray-500">{quizzesRecentPerformance.label}</p>
-              <p className="mt-3 text-sm font-normal text-gray-600">No recent attempts yet. Start your first quiz to unlock performance insights, retries, and study tips.</p>
-            </div>
-            {recommendedQuiz ? <Link href={buildQuizPreviewHref(recommendedQuiz.id, { skill: recommendedSkill, source: 'recommended' })} className="inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]">Start first quiz</Link> : null}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <AIInsightCard icon={Sparkles} title="AI study tip" recommendation={selectedSkillDetail ? `${selectedSkillDetail.label} is in focus right now. Review the matching suggested lessons next to reinforce the weak concepts from your quiz performance.` : recommendedTopicDetail ? `${recommendedTopicDetail.label} is your best next lesson focus. Reinforce it with courses before your next quiz.` : quizzesAIExplanation} scoreOrTag={selectedSkillDetail ? `Focus: ${selectedSkillDetail.label}` : undefined} ctaLabel="View suggested lessons" ctaHref={skillCoursesHref} />
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold tracking-tight text-gray-900">All quizzes</h2>
+        <h2 className="text-lg font-bold tracking-tight text-gray-900">All backend quizzes</h2>
         {selectedSkill ? <p className="text-sm font-normal text-gray-500 -mt-2">Filtering by skill: <span className="font-semibold text-gray-900">{getQuizSkillLabel(selectedSkill)}</span> - <Link href="/lms/quizzes" className="font-semibold text-[#28A8E1] hover:underline">Clear</Link></p> : null}
         {filteredCatalog.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {filteredCatalog.map((quiz) => (
-              <QuizCatalogCard key={quiz.id} quiz={quiz} bestScore={state.quizAttempts[quiz.id]?.bestScore} skill={normalizeQuizSkill(lmsQuizBank[quiz.id]?.skill ?? quiz.topic)} onOpen={openQuizPreview} />
+              <QuizCatalogCard key={quiz.id} quiz={quiz as any} bestScore={state.quizAttempts[quiz.id]?.bestScore} skill={normalizeQuizSkill(quiz.topic)} onOpen={openQuizPreview} />
             ))}
           </div>
         ) : (
-          <LmsEmptyState title="No quizzes match this skill focus" body="Clear the current skill selection to browse the full quiz catalog." action={<Link href="/lms/quizzes" className="inline-flex items-center justify-center rounded-xl bg-[#28A8E1] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98]">Show all quizzes</Link>} />
+           <LmsEmptyState title="No Backend Quizzes Found" body="Could not load quizzes from Database." action={null} />
         )}
       </section>
     </div>

@@ -8,6 +8,7 @@ import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { API_BASE_URL } from '@/lib/api-base';
 import NotificationPanel from '@/components/common/NotificationPanel';
 import ProfilePanel from '@/components/common/ProfilePanel';
+import GlobalAIAssistant from '@/components/common/GlobalAIAssistant';
 const PRIMARY = '#28A8DF';
 const JOBS_PATH = '/explore-jobs';
 
@@ -657,6 +658,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                 userEmail={userEmail}
                 profileCompletion={profileCompletion}
             />
+            {isLoggedIn && !isLandingPage && <GlobalAIAssistant />}
         </>
     );
 }

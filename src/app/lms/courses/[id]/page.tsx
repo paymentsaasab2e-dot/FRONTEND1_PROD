@@ -1,27 +1,53 @@
+'use client';
+
 import Link from 'next/link';
+import { use, useEffect, useState } from 'react';
 import { ArrowLeft, BookOpen, CheckCircle2, ListChecks, Sparkles } from 'lucide-react';
 import { LMS_CARD_CLASS, LMS_PAGE_SUBTITLE, LMS_SECTION_TITLE } from '../../constants';
-import { lmsCourseContent, lmsCourseMeta, lmsCoursesWithAI } from '../../data/ai-mock';
+import { lmsCourseMeta } from '../../data/ai-mock';
 import { CoursePlayerClient } from './player-client';
 import { CourseLessonsClient } from './CourseLessonsClient';
 import { LmsEmptyState } from '../../components/states/LmsEmptyState';
+import { LmsSkeleton } from '../../components/states/LmsSkeleton';
+import { fetchCourseDetail } from '../../api/client';
 
-export default async function LmsCourseDetailPage({
+export default function LmsCourseDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ mode?: string }>;
 }) {
-  // Next.js 16 (Turbopack) may provide params/searchParams as Promises.
-  const { id } = await params;
-  const sp = (await searchParams) ?? {};
+  const { id } = use(params);
+  const sp = searchParams ? use(searchParams) : {};
   const mode = sp.mode === 'review' ? 'review' : 'learn';
 
-  const course = lmsCoursesWithAI.find((c) => c.id === id);
-  const content = lmsCourseContent[id];
-  const meta = lmsCourseMeta[id];
-  if (!course || !content) {
+  const [course, setCourse] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await fetchCourseDetail(id);
+        setCourse(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="space-y-8 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <LmsSkeleton lines={8} />
+      </div>
+    );
+  }
+
+  if (!course) {
     return (
       <div className="space-y-8">
         <div className="min-w-0">
@@ -49,6 +75,24 @@ export default async function LmsCourseDetailPage({
     );
   }
 
+  const meta = lmsCourseMeta[id] || {};
+  
+  // Transform backend lessons into frontend modules structure
+  const displayModules = [
+    {
+      moduleId: 'm-1',
+      moduleTitle: 'Course Content',
+      lessons: (course.lessons || []).map((l: any) => ({
+        lessonId: l.id,
+        lessonTitle: l.title,
+        type: l.type,
+        duration: `${l.durationMinutes} min`,
+      }))
+    }
+  ];
+
+  const totalLessons = displayModules.reduce((acc, m) => acc + m.lessons.length, 0);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -65,11 +109,11 @@ export default async function LmsCourseDetailPage({
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 border border-gray-200 px-3 py-1 font-semibold">
               <BookOpen className="h-4 w-4 text-gray-500" strokeWidth={2} />
-              {course.duration}
+              {course.estimatedHours}h
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 border border-violet-100 px-3 py-1 font-semibold text-violet-900">
               <ListChecks className="h-4 w-4 text-violet-700" strokeWidth={2} />
-              {content.modules.reduce((acc, m) => acc + m.lessons.length, 0)} lessons
+              {totalLessons} lessons
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-white border border-gray-200 px-3 py-1 font-semibold text-gray-800">
               Mode: {mode === 'review' ? 'Review' : 'Learn'}
@@ -80,7 +124,7 @@ export default async function LmsCourseDetailPage({
         <div className={`${LMS_CARD_CLASS} sm:max-w-sm`}>
           <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Progress</p>
           <div className="mt-3">
-            <CoursePlayerClient courseId={course.id} modules={content.modules} recommendedNextId={meta?.recommendedNextId} />
+            <CoursePlayerClient courseId={course.id} modules={displayModules} recommendedNextId={meta?.recommendedNextId} />
           </div>
         </div>
       </div>
@@ -89,7 +133,7 @@ export default async function LmsCourseDetailPage({
         <div className={`${LMS_CARD_CLASS} xl:col-span-2 transition-all duration-200 hover:shadow-md`}>
           <h2 className={LMS_SECTION_TITLE}>What you'll learn</h2>
           <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-1.5">
-            {(meta?.outcomes ?? ['Build confidence in this topic area.', 'Practice interview-ready explanations.']).map((o) => (
+            {(meta?.outcomes ?? ['Build confidence in this topic area.', 'Practice interview-ready explanations.']).map((o: string) => (
               <li key={o}>{o}</li>
             ))}
           </ul>
@@ -97,28 +141,28 @@ export default async function LmsCourseDetailPage({
         <div className={`${LMS_CARD_CLASS} transition-all duration-200 hover:shadow-md`}>
           <h2 className={LMS_SECTION_TITLE}>Skills & relevance</h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            {(meta?.skills ?? []).map((s) => (
+            {(course.tags || meta?.skills || []).map((s: string) => (
               <span key={s} className="inline-flex rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-700">
                 {s}
               </span>
             ))}
           </div>
-          <p className="mt-4 text-sm text-gray-600">{meta?.whyRecommended ?? course.aiContext}</p>
+          <p className="mt-4 text-sm text-gray-600">{meta?.whyRecommended ?? course.aiContext ?? 'Recommended by AI Engine.'}</p>
         </div>
       </section>
 
       <section className="space-y-3">
         <h2 className={LMS_SECTION_TITLE}>Modules</h2>
-        <CourseLessonsClient courseId={course.id} modules={content.modules} mode={mode} />
+        <CourseLessonsClient courseId={course.id} modules={displayModules} mode={mode} />
       </section>
 
       <section className={`${LMS_CARD_CLASS} border-emerald-100 bg-emerald-50/20`}>
         <div className="flex items-start gap-3">
           <CheckCircle2 className="h-5 w-5 text-emerald-700 mt-0.5" strokeWidth={2} aria-hidden />
           <div>
-            <p className="text-sm font-bold text-emerald-900">Mock completion</p>
+            <p className="text-sm font-bold text-emerald-900">Connected to Backend</p>
             <p className="mt-1 text-sm font-normal text-emerald-950/70">
-              This course player is frontend-only. Completion state is stored locally (session) for UX testing.
+              This course view runs off the production database seamlessly loading content dynamically. Local session tracks player state interactively.
             </p>
           </div>
         </div>
@@ -153,4 +197,3 @@ export default async function LmsCourseDetailPage({
     </div>
   );
 }
-
