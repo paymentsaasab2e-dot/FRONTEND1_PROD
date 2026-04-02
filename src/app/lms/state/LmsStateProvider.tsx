@@ -9,7 +9,17 @@ import {
   notesUserNotes,
   type NoteType,
 } from '../data/ai-mock';
-import { updateCareerPath, fetchCareerPath, fetchResumeDraft, updateResumeDraft, generateResumeSummary, analyzeResumeDraft } from '../api/client';
+import { 
+  updateCareerPath, 
+  fetchCareerPath, 
+  fetchResumeDraft, 
+  updateResumeDraft, 
+  generateResumeSummary, 
+  analyzeResumeDraft, 
+  startMission,
+  fetchLmsDashboard,
+  setLmsGoal
+} from '../api/client';
 
 export type LmsPlannedItemType = 'course' | 'quiz' | 'event' | 'topic' | 'note' | 'resume';
 
@@ -81,8 +91,10 @@ type LmsNote = {
 
 type LmsCareerPathState = {
   started: boolean;
+  role?: string;
   manualCompletedStepIds: string[];
   completedStepIds: string[];
+  roadmapItems?: any[];
 };
 
 type LmsQuizAttemptSummary = {
@@ -104,6 +116,7 @@ type LmsState = {
   notes: LmsNote[];
   resumeDraft: LmsResumeDraftState;
   careerPath: LmsCareerPathState;
+  dashboardData: any;
   isHydrated: boolean;
 };
 
@@ -131,11 +144,13 @@ type Action =
   | { type: 'resumeHydrate'; draft: Partial<LmsResumeDraftState> }
   | { type: 'setResumeAnalyzing'; isAnalyzing: boolean }
   | { type: 'setResumeAnalysis'; analysis: LmsResumeAnalysisResult }
-  | { type: 'careerStart' }
+  | { type: 'careerStart'; roadmapItems?: any[]; role?: string }
   | { type: 'careerToggleStep'; stepId: string }
   | { type: 'careerSetStepCompletion'; stepId: string; completed: boolean }
   | { type: 'careerReset' }
   | { type: 'careerHydrate'; data: Partial<LmsCareerPathState> }
+  | { type: 'careerSetTargetRoles'; roles: string[] }
+  | { type: 'setDashboardData'; data: any }
   | { type: 'hydrate'; state: LmsState };
 
 const STORAGE_KEY = 'lmsState:v1';
@@ -185,7 +200,9 @@ const initialState: LmsState = {
     started: false,
     manualCompletedStepIds: [],
     completedStepIds: [],
+    roadmapItems: [],
   },
+  dashboardData: null,
   isHydrated: false,
 };
 
@@ -476,6 +493,8 @@ function hydrateState(raw: unknown): LmsState {
 
 function reducer(state: LmsState, action: Action): LmsState {
   switch (action.type) {
+    case 'setDashboardData':
+      return { ...state, dashboardData: action.data };
     case 'hydrate':
       return syncCareerPathState({ ...action.state, isHydrated: true });
     case 'toggleSaveCourse': {
@@ -575,7 +594,15 @@ function reducer(state: LmsState, action: Action): LmsState {
     case 'setResumeAnalysis':
       return { ...state, resumeDraft: { ...state.resumeDraft, analysis: action.analysis, isAnalyzing: false } };
     case 'careerStart':
-      return syncCareerPathState({ ...state, careerPath: { ...state.careerPath, started: true } });
+      return syncCareerPathState({ 
+        ...state, 
+        careerPath: { 
+          ...state.careerPath, 
+          started: true, 
+          roadmapItems: action.roadmapItems || [],
+          role: action.role
+        } 
+      });
     case 'careerToggleStep': {
       const has = state.careerPath.manualCompletedStepIds.includes(action.stepId);
       return syncCareerPathState({
@@ -636,10 +663,12 @@ type LmsStateApi = {
   syncResumeDraftToBackend: () => Promise<void>;
   generateResumeSummaryWithAi: (headline: string) => Promise<void>;
   analyzeResumeWithAi: () => Promise<void>;
-  careerStart: () => void;
+  careerStart: () => Promise<void>;
   careerToggleStep: (stepId: string) => void;
   careerSetStepCompletion: (stepId: string, completed: boolean) => void;
   careerReset: () => void;
+  setLmsGoalAction: (goal: string) => Promise<void>;
+  fetchDashboard: () => Promise<any>;
 };
 
 const LmsStateContext = createContext<LmsStateApi | null>(null);
@@ -651,9 +680,10 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const [cp, resume] = await Promise.allSettled([
+        const [cp, resume, dashboard] = await Promise.allSettled([
           fetchCareerPath(),
-          fetchResumeDraft()
+          fetchResumeDraft(),
+          fetchLmsDashboard()
         ]);
         
         if (cp.status === 'fulfilled' && cp.value) {
@@ -661,7 +691,9 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
             type: 'careerHydrate', 
             data: { 
               started: cp.value.missionStarted, 
-              manualCompletedStepIds: cp.value.manualCompletedStepIds || [] 
+              manualCompletedStepIds: cp.value.manualCompletedStepIds || [],
+              roadmapItems: cp.value.roadmapItems || [],
+              role: cp.value.role || undefined
             } 
           });
         }
@@ -682,6 +714,10 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
                }
              }
            });
+        }
+
+        if (dashboard.status === 'fulfilled' && dashboard.value) {
+          dispatch({ type: 'setDashboardData', data: dashboard.value });
         }
       } catch (err) {
         // Silently fail
@@ -819,13 +855,56 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
   );
   const resetResumeDraft = useCallback(() => dispatch({ type: 'resetResumeDraft' }), []);
   const markResumeSaved = useCallback(() => dispatch({ type: 'markResumeSaved' }), []);
-  const careerStart = useCallback(() => dispatch({ type: 'careerStart' }), []);
+  const careerStart = useCallback(async () => {
+    try {
+      const data = await startMission();
+      if (data) {
+        dispatch({ 
+          type: 'careerStart', 
+          roadmapItems: data.roadmapItems || [],
+          role: data.role || 'Target Role'
+        });
+      }
+    } catch (err) {
+      console.error('Failed to start career mission', err);
+      throw err;
+    }
+  }, []);
   const careerToggleStep = useCallback((stepId: string) => dispatch({ type: 'careerToggleStep', stepId }), []);
   const careerSetStepCompletion = useCallback(
     (stepId: string, completed: boolean) => dispatch({ type: 'careerSetStepCompletion', stepId, completed }),
     []
   );
   const careerReset = useCallback(() => dispatch({ type: 'careerReset' }), []);
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const data = await fetchLmsDashboard();
+      dispatch({ type: 'setDashboardData', data });
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch dashboard data', error);
+      return null;
+    }
+  }, []);
+
+  const setLmsGoalAction = useCallback(async (goal: string) => {
+    try {
+      const data = await setLmsGoal(goal);
+      if (data) {
+        dispatch({ type: 'careerHydrate', data: { 
+          started: data.missionStarted, 
+          roadmapItems: data.roadmapItems || [],
+          role: data.targetRole || goal
+        }});
+        // Re-fetch dashboard to see changes
+        const d = await fetchLmsDashboard();
+        dispatch({ type: 'setDashboardData', data: d });
+      }
+    } catch (error) {
+      console.error('Failed to set goal', error);
+    }
+  }, [fetchLmsDashboard]);
 
   const api = useMemo<LmsStateApi>(
     () => ({
@@ -854,6 +933,8 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
       careerToggleStep,
       careerSetStepCompletion,
       careerReset,
+      setLmsGoalAction,
+      fetchDashboard,
     }),
     [
       state,
@@ -881,6 +962,8 @@ export function LmsStateProvider({ children }: { children: ReactNode }) {
       careerToggleStep,
       careerSetStepCompletion,
       careerReset,
+      setLmsGoalAction,
+      fetchDashboard,
     ]
   );
 

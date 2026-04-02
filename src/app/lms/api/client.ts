@@ -131,6 +131,29 @@ export async function updateCareerPath(payload: any) {
   const data = await res.json(); return data.data;
 }
 
+export async function setLmsGoal(goal: string) {
+  const res = await lmsFetch(`${LMS_API_BASE}/career-path/goal`, { method: 'POST', body: JSON.stringify({ goal }) });
+  if (!res) return null;
+  if (!res.ok) throw new Error('Failed to set goal');
+  const data = await res.json(); return data.data;
+}
+
+export async function startMission() {
+  const res = await lmsFetch(`${LMS_API_BASE}/career-path/start`, { method: 'POST' });
+  if (!res) return null;
+  if (!res.ok) throw new Error('Failed to start mission');
+  const data = await res.json(); return data.data;
+}
+
+export async function fetchGoalRecommendations(query: string) {
+  if (!query || query.length < 2) return [];
+  const res = await lmsFetch(`${LMS_API_BASE}/career-path/recommend-goal?q=${encodeURIComponent(query)}`, { method: 'GET' });
+  if (!res) return [];
+  if (!res.ok) throw new Error('Failed to fetch recommendations');
+  const data = await res.json(); 
+  return data.data;
+}
+
 export async function fetchResumeDraft() {
   const res = await lmsFetch(`${LMS_API_BASE}/resume/draft`, { method: 'GET' });
   if (!res) return null;

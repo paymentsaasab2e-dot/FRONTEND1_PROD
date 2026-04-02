@@ -78,24 +78,15 @@ export default function LmsDashboardPage() {
   const router = useRouter();
   const overlay = useLmsOverlay();
   const toast = useLmsToast();
-  const { state, registerEvent, unregisterEvent, addPlannedItem, setLastActiveCourseId } = useLmsState();
-
-  const [dashboardData, setDashboardData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { state, registerEvent, unregisterEvent, addPlannedItem, setLastActiveCourseId, fetchDashboard } = useLmsState();
+  const dashboardData = state.dashboardData;
+  const isLoading = !state.isHydrated || !dashboardData;
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await fetchLmsDashboard();
-        setDashboardData(data);
-      } catch (err) {
-        console.error('Failed to fetch dashboard data', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, []);
+    if (state.isHydrated && !dashboardData) {
+      fetchDashboard();
+    }
+  }, [state.isHydrated, dashboardData, fetchDashboard]);
 
   const quizScores = Object.values(state.quizAttempts);
   const quizAvg =
@@ -135,13 +126,13 @@ export default function LmsDashboardPage() {
   const dynamicScores = [
     {
       id: 'readiness',
-      title: 'Role readiness',
-      score: compositeReadiness,
+      title: 'CV Analysis Score',
+      score: dashboardData?.cvScore ?? compositeReadiness,
       supportingText:
-        dashboardData ? 'Aggregated from your courses, quizzes, and career progress.' :
+        dashboardData?.cvScore ? 'Extracted from your latest CV analysis.' :
         (quizAvg !== null
           ? `Averaged dynamically with ${quizScores.length} real quiz attempts.`
-          : 'Mock baseline. Take quizzes to shift this value.'),
+          : 'Complete your first quiz to update your score.'),
       visual: 'ring' as const,
     },
     {
@@ -230,13 +221,13 @@ export default function LmsDashboardPage() {
     <div className="space-y-8 pb-10">
       <div className="min-w-0">
         <h1 className="mb-1 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Welcome back</h1>
-        <p className={LMS_PAGE_SUBTITLE}>The orchestration layer. Dynamically reading state from all LMS branches.</p>
+        <p className={LMS_PAGE_SUBTITLE}>Your AI-powered career hub. Tracking your journey to your next professional destination.</p>
       </div>
 
       <section className="space-y-4 rounded-2xl border border-violet-100 bg-white/60 p-5 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-6">
-        <AISectionHeading title="Dynamic LMS intelligence" />
+        <AISectionHeading title="Real-time LMS intelligence" />
         <p className="-mt-1 text-sm font-normal text-gray-500">
-          Actively aggregating `{activityCount}` interaction flags across the LMS.
+          Analyzing your `{activityCount}` interactions for personalized career guidance.
         </p>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -252,16 +243,16 @@ export default function LmsDashboardPage() {
         </div>
 
         <AIInsightCard
-          icon={Lightbulb}
-          title={dashboardPrimaryInsight.title}
-          recommendation={dynamicCoachRec}
-          scoreOrTag={dashboardPrimaryInsight.badge}
+          icon={Sparkles}
+          title={dashboardData?.badge || "AI Career Guide"}
+          recommendation={dashboardData?.primaryInsight || dynamicCoachRec}
+          scoreOrTag={dashboardData?.badge || "AI ANALYSIS"}
           ctaLabel={
             !hasSavedResume
               ? 'Open Resume Builder'
               : !state.careerPath.started
                 ? 'Launch Career Path'
-                : 'View specific recommendations'
+                : 'View Full Roadmap'
           }
           onCta={() => {
             if (!hasSavedResume) {
@@ -294,7 +285,11 @@ export default function LmsDashboardPage() {
         <div className="grid grid-cols-1 gap-6 pt-2 lg:grid-cols-2">
           <AIRecommendationList
             sectionTitle="Suggested modules based on target"
-            items={dashboardModuleRecommendations}
+            items={dashboardData?.personalizedRecs?.slice(0, 2).map((r: any) => ({
+              id: r.id,
+              label: r.title,
+              text: r.description
+            })) || dashboardModuleRecommendations}
             onCta={(item) => {
               addPlannedItem({
                 id: `rec:${item.id}`,
@@ -310,14 +305,14 @@ export default function LmsDashboardPage() {
           />
           <AIInsightCard
             icon={Target}
-            title={dashboardRolePath.title}
+            title="Personalized Learning Path"
             recommendation={
               state.careerPath.started
                 ? `Your active Career Path is tracking ${state.careerPath.completedStepIds.length} completed roadmap items.`
-                : dashboardRolePath.recommendation
+                : "Your roadmap is generated based on your CV analysis to bridge identified gaps."
             }
-            scoreOrTag={state.careerPath.started ? 'Active Tracking' : dashboardRolePath.badge}
-            ctaLabel={state.careerPath.started ? 'Jump back into Path' : dashboardRolePath.ctaLabel}
+            scoreOrTag={state.careerPath.started ? 'Active Tracking' : "DYNAMIC"}
+            ctaLabel={state.careerPath.started ? 'Jump back into Path' : "View AI Roadmap"}
             onCta={() => router.push('/lms/career-path')}
           />
         </div>
@@ -378,23 +373,26 @@ export default function LmsDashboardPage() {
       <section className="space-y-3">
         <h2 className={LMS_SECTION_TITLE}>Dynamically recommended for you</h2>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {RECOMMENDED.map(({ title, description, tag, icon: Icon, href }) => (
-            <Link key={title} href={href} className={LMS_CARD_INTERACTIVE}>
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 text-gray-700">
-                  <Icon className="h-5 w-5" strokeWidth={2} />
-                </div>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <h3 className="text-base font-bold leading-snug text-gray-900">{title}</h3>
-                  <p className="text-sm font-normal leading-relaxed text-gray-500">{description}</p>
-                  <div className="flex flex-wrap items-center gap-2 pt-1">{levelBadge(tag)}</div>
-                  <div className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-[#28A8E1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] sm:w-auto">
-                    Open Path
+          {(dashboardData?.personalizedRecs || RECOMMENDED).map((item: any) => {
+            const Icon = item.type === 'quiz' ? Target : item.type === 'prep' ? Sparkles : Layers;
+            return (
+              <Link key={item.title || item.label} href={item.href || '#'} className={LMS_CARD_INTERACTIVE}>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-gray-50 text-gray-700">
+                    <Icon className="h-5 w-5" strokeWidth={2} />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <h3 className="text-base font-bold leading-snug text-gray-900">{item.title || item.label}</h3>
+                    <p className="text-sm font-normal leading-relaxed text-gray-500">{item.description || item.text}</p>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">{levelBadge(item.tag || 'Intermediate')}</div>
+                    <div className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-[#28A8E1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-95 hover:shadow-md active:scale-[0.98] sm:w-auto">
+                      Open Module
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </section>
 
