@@ -6,6 +6,7 @@ import Footer from '@/components/common/Footer';
 import Image from 'next/image';
 import ApplicationSuccessModal from '../../components/modals/ApplicationSuccessModal';
 import DashboardContainer from '../../components/layout/DashboardContainer';
+import { Sparkles } from 'lucide-react';
 
 // Use backend1 directly (it shares the same MongoDB as backendphase2).
 import { API_BASE_URL } from '@/lib/api-base';
@@ -22,6 +23,8 @@ interface JobListing {
   type: string
   skills: string[]
   match: string
+  matchScore?: number
+  normalizedScore?: number
   timeAgo: string
   isHighlighted?: boolean
   description: string
@@ -38,6 +41,14 @@ interface JobListing {
   postedDate: string
   strengths?: string[]
   gaps?: string[]
+  confidenceTag?: string
+  reasoning?: string
+  matchedSkills?: string[]
+  missingSkills?: string[]
+  transferableSkills?: string[]
+  skillGaps?: string[]
+  hiringRecommendation?: string
+  breakdown?: any
 }
 
 const DashboardPage = () => {
@@ -175,80 +186,68 @@ const DashboardPage = () => {
     return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
   };
 
+  const [isPersonalized, setIsPersonalized] = useState(false);
+
   const loadJobListings = async () => {
     try {
       setLoading(true);
+      const candidateId = sessionStorage.getItem('candidateId');
       
-      // First, try to seed jobs if database is empty
-      try {
-        const seedResponse = await fetch(`${API_BASE_URL}/jobs/seed`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!seedResponse.ok) {
-          console.log('Seed endpoint may not be available or jobs already exist');
-        }
-      } catch (seedError) {
-        console.log('Seed endpoint may not be available or jobs already exist:', seedError);
+      let url = `${API_BASE_URL}/jobs?limit=500`;
+      let usingPersonalized = false;
+
+      // Try personalized first if candidate is logged in
+      if (candidateId) {
+        url = `${API_BASE_URL}/jobs/personalized?candidateId=${candidateId}`;
+        usingPersonalized = true;
       }
 
-      // Fetch jobs from database
+      // Fetch jobs
       let response: Response;
       try {
-        response = await fetch(`${API_BASE_URL}/jobs?limit=50`, {
-          method: 'GET',
-        });
+        response = await fetch(url, { method: 'GET' });
       } catch (fetchError: unknown) {
         console.error('Network error fetching jobs:', fetchError);
-        const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-        throw new Error(
-          `Failed to connect to server. Please ensure the backend server is running on ${API_BASE_URL}. Error: ${message}`
-        );
+        throw new Error(`Failed to connect to server at ${API_BASE_URL}`);
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error response:', errorText);
-        throw new Error(`Failed to fetch jobs: ${response.status} ${response.statusText}`);
+        // If personalized failed (e.g. no profile), fallback to general if appropriate
+        // OR just log it and show regular jobs
+        if (usingPersonalized) {
+          console.warn('Personalized fetch failed, falling back to general list');
+          response = await fetch(`${API_BASE_URL}/jobs?limit=500`, { method: 'GET' });
+          usingPersonalized = false;
+        } else {
+          throw new Error(`Failed to fetch jobs: ${response.status}`);
+        }
       }
 
       const result: any = await response.json();
+      setIsPersonalized(usingPersonalized);
       
-      const rawJobs =
-        (result?.data?.jobs as Array<any> | undefined) ||
-        (result?.data?.data as Array<any> | undefined) ||
-        (result?.data?.items as Array<any> | undefined) ||
-        [];
+      const rawJobs = result?.data || [];
 
       if (result.success && Array.isArray(rawJobs)) {
         // Transform API response to JobListing format
         const transformedJobs: JobListing[] = rawJobs.map((job: any, index: number) => {
-          const matchScore = job.matchScore || Math.floor(Math.random() * 21) + 75;
+          const matchScoreFromApi = job.matchScore;
+          const matchScore = matchScoreFromApi || Math.floor(Math.random() * 21) + 75;
           
-          // Use MongoDB ObjectId as string, or generate a numeric ID
           const jobId = job.id || `job-${index + 1}`;
           
           return {
             id: jobId,
-            title: job.title || 'Job Title',
-            company: job.client?.companyName || job.company || 'Company Name',
-            logo: job.client?.logo || job.companyLogo || '/perosn_icon.png',
+            title: job.jobTitle || job.title || 'Job Title',
+            company: job.company || 'Company Name',
+            logo: job.logo || '/perosn_icon.png',
             location: job.location || 'Location not specified',
-            salary: formatSalary(job.salary?.min ?? job.salaryMin, job.salary?.max ?? job.salaryMax, job.salary?.currency ?? job.salaryCurrency, job.salary?.type ?? job.salaryType),
-            type:
-              job.type === 'FULL_TIME' ? 'Full-time' :
-              job.type === 'PART_TIME' ? 'Part-time' :
-              job.type === 'CONTRACT' ? 'Contract' :
-              job.type === 'INTERNSHIP' ? 'Internship' :
-              job.type === 'FREELANCE' ? 'Contract' :
-              job.employmentType === 'FULL_TIME' ? 'Full-time' :
-              job.employmentType === 'PART_TIME' ? 'Part-time' :
-              job.employmentType === 'CONTRACT' ? 'Contract' :
-              job.employmentType === 'INTERNSHIP' ? 'Internship' : 'Full-time',
-            skills: Array.isArray(job.skills) ? job.skills : [],
+            salary: job.salary ? formatSalary(job.salary?.min ?? job.salaryMin, job.salary?.max ?? job.salaryMax, job.salary?.currency ?? job.salaryCurrency, job.salary?.type ?? job.salaryType) : 'Salary not specified',
+            type: job.type || 'Full-time',
+            skills: Array.isArray(job.skills) ? job.skills : (job.matchedSkills || []),
             match: `${matchScore}% Match`,
+            matchScore: matchScore,
+            normalizedScore: job.normalizedScore || matchScore,
             timeAgo: formatTimeAgo(job.postedDate || job.postedAt || job.createdAt || new Date()),
             isHighlighted: matchScore >= 85,
             description: job.overview || job.aboutRole || job.description || 'No description available.',
@@ -265,40 +264,35 @@ const DashboardPage = () => {
             companyOverview: `We are a leading company in the ${job.industry || job.department || 'technology'} industry.`,
             experienceLevel: job.experienceRequired || job.experienceLevel || 'Not specified',
             department: job.industry || job.department || undefined,
-            workMode:
-              job.workMode === 'REMOTE' ? 'Remote' :
-              job.workMode === 'HYBRID' ? 'Hybrid' :
-              job.workMode === 'ON_SITE' ? 'On-site' :
-              job.workMode ? job.workMode : 'On-site',
+            workMode: job.workMode || 'On-site',
             industry: job.industry || job.department || 'Technology',
             visaAvailability: job.visaSponsorship || job.visaSponsorship === true ? 'Available' : 'Not Available',
             applicantCount: `${Math.floor(Math.random() * 200) + 20}+`,
             postedDate: formatDate(job.postedDate || job.postedAt || job.createdAt || new Date()),
-            strengths: [],
-            gaps: [],
+            strengths: job.strongMatches || [],
+            gaps: job.skillGaps || [],
+            confidenceTag: job.confidenceTag,
+            reasoning: job.reasoning,
+            matchedSkills: job.matchedSkills,
+            missingSkills: job.missingSkills,
+            transferableSkills: job.transferableSkills,
+            hiringRecommendation: job.hiringRecommendation,
+            breakdown: job.breakdown
           };
         });
 
         setJobListings(transformedJobs);
         if (transformedJobs.length > 0) {
           setSelectedJob(transformedJobs[0]);
+        } else {
+          setSelectedJob(null);
         }
       } else {
-        console.log('No jobs found in database');
         setJobListings([]);
+        setSelectedJob(null);
       }
     } catch (error: any) {
       console.error('Failed to load job listings:', error);
-      // Show user-friendly error message
-      if (error.message) {
-        console.error('Error details:', error.message);
-        // Only show alert if it's a connection error
-        if (error.message.includes('Failed to connect') || error.message.includes('Failed to fetch')) {
-          console.warn(`Backend server may not be running. Please ensure the server is running on ${API_BASE_URL}`);
-        }
-      } else {
-        console.error('Unknown error occurred');
-      }
       setJobListings([]);
     } finally {
       setLoading(false);
@@ -616,10 +610,25 @@ const DashboardPage = () => {
                 {when}
               </span>
             </div>
-            <div className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold shadow-sm border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-transparent transition-all duration-500" style={{ fontSize: "11px" }}>
-              {job.match}
+            <div className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold shadow-sm border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white group-hover:border-transparent transition-all duration-500 flex items-center gap-1" style={{ fontSize: "11px" }}>
+              {isPersonalized && (
+                <svg className="w-3.5 h-3.5 text-emerald-600 group-hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+              )}
+              {isPersonalized ? `AI Score: ${job.match}` : job.match}
             </div>
           </div>
+
+          {job.confidenceTag && (
+            <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+              job.confidenceTag === 'Excellent Match' ? 'bg-purple-100 text-purple-700' :
+              job.confidenceTag === 'Strong Match' ? 'bg-blue-100 text-blue-700' :
+              'bg-gray-100 text-gray-600'
+            }`}>
+              {job.confidenceTag}
+            </div>
+          )}
 
           <button
             onClick={(e) => {
@@ -694,8 +703,8 @@ const DashboardPage = () => {
               <span className="whitespace-nowrap">{when}</span>
             </div>
 
-            <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-              {job.match}
+            <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-100 px-3 py-1 text-xs font-black text-emerald-700 shadow-sm">
+              {isPersonalized ? `AI Fit: ${job.match}` : job.match}
             </span>
 
             <button
@@ -728,8 +737,19 @@ const DashboardPage = () => {
                 {/* Top Header Area */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">Explore Jobs</h1>
-                    <p className="text-gray-500 font-medium">Find roles that match your profile and preferences.</p>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">Explore Jobs</h1>
+                      {isPersonalized && (
+                         <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-100 uppercase tracking-wider">
+                           Profile Matched
+                         </span>
+                      )}
+                    </div>
+                    <p className="text-gray-500 font-medium">
+                      {isPersonalized 
+                        ? "Currently showing only roles perfectly aligned with your active profile."
+                        : "Find roles that match your profile and preferences."}
+                    </p>
                   </div>
                   <div className="w-full sm:w-[360px]">
                     <input
@@ -743,7 +763,7 @@ const DashboardPage = () => {
                 </div>
 
                 {/* Main Grid */}
-                <div className="mt-6 grid grid-cols-12 gap-5">
+                <div className="mt-6 grid grid-cols-12 gap-5 relative">
               {/* Sidebar filters */}
               <aside className="col-span-12 lg:col-span-4 xl:col-span-3">
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 ease-out p-6">
@@ -979,9 +999,12 @@ const DashboardPage = () => {
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 ease-out p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-xs tracking-widest text-gray-400 font-bold uppercase">Recommended for you</p>
-                      <p className="mt-1 text-sm text-gray-500 font-medium">
-                        Showing {loading ? '…' : filteredJobs.length} jobs
+                      <p className="text-xs tracking-widest text-[#28A8DF] font-black uppercase flex items-center gap-2">
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM11 16h2v2h-2v-2zm0-10h2v8h-2V6z"/></svg>
+                        {isPersonalized ? "Elite AI Matches for your Profile" : "Recommended for you"}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600 font-bold">
+                        {loading ? 'Analyzing your profile…' : `Identified ${filteredJobs.length} potential career matches`}
                       </p>
                     </div>
 
@@ -1169,149 +1192,211 @@ const DashboardPage = () => {
 
                         <div className="flex flex-col xl:flex-row gap-3 sm:gap-4 md:gap-5 lg:gap-6 xl:gap-7 2xl:gap-8 min-w-0">
                           <div className="flex-1 min-w-0">
-                            {/* About the Role */}
-                            <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>About the Role</h3>
-                              <p className="text-gray-600 leading-relaxed wrap-break-word" style={{ fontSize: "clamp(12px, 1.4vw, 15px)", lineHeight: "1.6" }}>
-                                {selectedJob.description}
-                              </p>
-                            </section>
+                             {/* About the Role */}
+                             <section className="mb-8">
+                               <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2" style={{ fontSize: "18px" }}>
+                                 <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                 About the Role
+                               </h3>
+                               <div className="space-y-4">
+                                 {selectedJob.companyOverview && (
+                                   <p className="text-gray-900 font-bold italic leading-relaxed" style={{ fontSize: "15px" }}>
+                                     "{selectedJob.companyOverview}"
+                                   </p>
+                                 )}
+                                 <p className="text-gray-600 leading-relaxed" style={{ fontSize: "15px", lineHeight: "1.7" }}>
+                                   {selectedJob.description}
+                                 </p>
+                               </div>
+                             </section>
 
-                            {/* Responsibilities */}
-                            <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Responsibilities</h3>
-                              <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
-                                {selectedJob.responsibilities?.map((item, idx) => (
-                                  <div key={idx} className="flex items-start gap-2 sm:gap-3 md:gap-4 min-w-0">
-                                    <div className="mt-0.5 shrink-0 rounded-full border-2 border-[#28A8DF] flex items-center justify-center" style={{ width: "clamp(16px, 2vw, 20px)", height: "clamp(16px, 2vw, 20px)" }}>
-                                      <svg className="text-[#28A8DF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4} style={{ width: "clamp(10px, 1.2vw, 12px)", height: "clamp(10px, 1.2vw, 12px)" }}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    </div>
-                                    <p className="text-gray-600 leading-relaxed font-medium wrap-break-word flex-1 min-w-0" style={{ fontSize: "clamp(12px, 1.4vw, 15px)", lineHeight: "1.6" }}>{item}</p>
+                             {/* Responsibilities */}
+                             <section className="mb-8">
+                               <h3 className="font-bold text-gray-900 mb-4" style={{ fontSize: "18px" }}>Key Responsibilities</h3>
+                               <div className="space-y-3">
+                                 {selectedJob.responsibilities?.length ? selectedJob.responsibilities.map((item, idx) => (
+                                   <div key={idx} className="flex items-start gap-3">
+                                     <div className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                                     <p className="text-gray-600 leading-relaxed font-medium" style={{ fontSize: "14.5px" }}>{item}</p>
+                                   </div>
+                                 )) : (
+                                   <p className="text-gray-400 italic font-medium">Detailed responsibilities will be shared during the interview process.</p>
+                                 )}
+                               </div>
+                             </section>
+
+                             {/* Specialized Requirements & Education */}
+                             <section className="mb-8 p-6 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+                               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2" style={{ fontSize: "17px" }}>
+                                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5z" /><path d="M12 14v7" /><path d="M12 14l9-5-9-5-9 5 9 5z" /><path d="M5.4 10.6L5 14.5l6.6 3 6.6-3-.4-3.9" /></svg>
+                                 Education & Prerequisites
+                               </h3>
+                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                 <div>
+                                   <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest mb-1">Degree Preferred</p>
+                                   <p className="text-gray-900 font-bold text-sm">{(selectedJob as any).education || 'B.Tech / MCA / Equivalent'}</p>
+                                 </div>
+                                 <div>
+                                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest mb-1">Experience Required</p>
+                                    <p className="text-gray-900 font-bold text-sm">{selectedJob.experienceLevel}</p>
+                                 </div>
+                               </div>
+                             </section>
+
+                             {/* Technical Competencies */}
+                             <section className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div>
+                                  <h3 className="font-bold text-gray-900 mb-4" style={{ fontSize: "16px" }}>Core Skills</h3>
+                                  <div className="flex flex-wrap gap-2">
+                                    {selectedJob.requiredSkills?.map((skill, idx) => (
+                                      <span key={idx} className="px-3 py-1.5 bg-gray-900 text-white font-bold rounded-lg shadow-sm" style={{ fontSize: "12px" }}>
+                                        {skill}
+                                      </span>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
-                            </section>
+                                </div>
+                                {selectedJob.niceToHaveSkills && selectedJob.niceToHaveSkills.length > 0 && (
+                                  <div>
+                                    <h3 className="font-bold text-gray-900 mb-4" style={{ fontSize: "16px" }}>Bonus / Tools</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                      {selectedJob.niceToHaveSkills.map((skill, idx) => (
+                                        <span key={idx} className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 font-bold rounded-lg" style={{ fontSize: "12px" }}>
+                                          {skill}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                             </section>
 
-                            {/* Required Skills */}
-                            <section className="mb-3 sm:mb-4 md:mb-5 lg:mb-6">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Required Skills</h3>
-                              <div className="flex flex-wrap gap-1.5 sm:gap-2 md:gap-2.5">
-                                {selectedJob.requiredSkills?.map((skill, idx) => (
-                                  <span key={idx} className="px-2.5 sm:px-3 md:px-4 py-1 sm:py-1.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-full shadow-sm wrap-break-word" style={{ fontSize: "clamp(10px, 1.1vw, 13px)" }}>
-                                    {skill}
-                                  </span>
-                                ))}
-                              </div>
-                            </section>
+                             {/* Benefits & Perks */}
+                             <section className="mb-8">
+                               <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2" style={{ fontSize: "17px" }}>
+                                 <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                 Benefits & Perks
+                               </h3>
+                               <div className="flex flex-wrap gap-3">
+                                 {((selectedJob as any).benefits?.length ? (selectedJob as any).benefits : ['Health Insurance', 'Performance Bonus', 'Professional Development', 'Remote Options']).map((perk: string, i: number) => (
+                                   <div key={i} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                                      <svg className="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                      <span className="text-[13px] font-bold text-emerald-800">{perk}</span>
+                                   </div>
+                                 ))}
+                               </div>
+                             </section>
 
-                            {/* Nice-to-have Skills */}
-                            {selectedJob.niceToHaveSkills && (
-                              <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                                <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Nice-to-have Skills</h3>
-                                <div className="flex flex-wrap gap-1.5 sm:gap-2 md:gap-2.5">
-                                  {selectedJob.niceToHaveSkills.map((skill, idx) => (
-                                    <span key={idx} className="px-2.5 sm:px-3 md:px-4 py-1 sm:py-1.5 bg-gray-100 text-gray-700 font-medium rounded-full wrap-break-word" style={{ fontSize: "clamp(11px, 1.2vw, 14px)" }}>
-                                      {skill}
-                                    </span>
-                                  ))}
+                             {/* Meta Information */}
+                             <section className="mb-0 pt-6 border-t border-gray-100">
+                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                                 <div>
+                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Employment</p>
+                                   <p className="font-bold text-gray-900 text-sm">{selectedJob.type}</p>
+                                 </div>
+                                 <div>
+                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Work Mode</p>
+                                   <p className="font-bold text-gray-900 text-sm">{selectedJob.workMode}</p>
+                                 </div>
+                                 <div>
+                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Priority</p>
+                                   <p className="font-bold text-emerald-600 text-sm">{(selectedJob as any).priority || 'Standard'}</p>
+                                 </div>
+                                 <div>
+                                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">posted Date</p>
+                                   <p className="font-bold text-gray-900 text-sm">{selectedJob.postedDate}</p>
+                                 </div>
+                               </div>
+                             </section>
+
+                            {/* AI Match Analysis Matrix (Global AI Assistant Integrated) */}
+                            {selectedJob.reasoning || selectedJob.matchScore ? (
+                              <section className="mb-8 mt-4 w-full">
+                                <div 
+                                  className="rounded-3xl p-[1px] bg-gradient-to-br from-indigo-500 via-blue-400 to-emerald-400"
+                                  style={{ boxShadow: "0 10px 40px -10px rgba(79, 70, 229, 0.2)" }}
+                                >
+                                  <div className="bg-white/95 backdrop-blur-xl rounded-[23px] overflow-hidden">
+                                    <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                                      
+                                      {/* Left: Score & Verdict */}
+                                      <div className="w-full md:w-[240px] p-8 flex flex-col items-center justify-center bg-gradient-to-b from-indigo-50/30 to-transparent">
+                                        <div className="text-[10px] font-black tracking-widest text-indigo-500 uppercase mb-4">Market Alignment</div>
+                                        
+                                        <div className="relative mb-6">
+                                          <svg className="w-24 h-24 transform -rotate-90">
+                                            <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
+                                            <circle 
+                                              cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" 
+                                              strokeDasharray={251.2} 
+                                              strokeDashoffset={251.2 - (251.2 * (parseInt(selectedJob.match?.replace('%','') || '0') / 100))} 
+                                              className="text-indigo-600 drop-shadow-sm" 
+                                            />
+                                          </svg>
+                                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <span className="text-2xl font-black text-gray-900">{selectedJob.match}</span>
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">AI FIT</span>
+                                          </div>
+                                        </div>
+
+                                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mb-6 ${
+                                          selectedJob.confidenceTag === 'Excellent Match' ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'
+                                        }`}>
+                                          {selectedJob.confidenceTag || 'Good Match'}
+                                        </div>
+
+                                        <button 
+                                          onClick={() => router.push('/cveditor')}
+                                          className="w-full py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all shadow-lg active:scale-95"
+                                        >
+                                          Optimize My CV
+                                        </button>
+                                      </div>
+
+                                      {/* Right: Insights & Skill Overlap */}
+                                      <div className="flex-1 p-8">
+                                        <div className="flex items-center gap-2 mb-4">
+                                           <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                                           <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">AI Matching Insight</h4>
+                                        </div>
+                                        
+                                        <p className="text-gray-600 text-sm leading-relaxed mb-6 font-medium italic">
+                                          "{selectedJob.reasoning || "Based on your technical background and experience, you are a competitive candidate for this role. Key overlaps found in core technical stacks."}"
+                                        </p>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                          <div>
+                                            <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                               Matches
+                                            </h5>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {(selectedJob.matchedSkills?.length ? selectedJob.matchedSkills : selectedJob.skills?.slice(0, 4)).map((s, i) => (
+                                                <div key={i} className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-lg border border-emerald-100 flex items-center gap-1">
+                                                   {s}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <h5 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                               Gap Risk
+                                            </h5>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {(selectedJob.missingSkills?.length ? selectedJob.missingSkills : ['Advanced Scaling', 'System Optimization']).map((s, i) => (
+                                                <div key={i} className="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg border border-red-100">
+                                                   {s}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               </section>
-                            )}
-
-                            {/* Job Information Grid */}
-                            <section className="mb-4 sm:mb-5 md:mb-6 lg:mb-7 xl:mb-8">
-                              <h3 className="font-bold text-gray-900 mb-2 sm:mb-3 md:mb-4 wrap-break-word" style={{ fontSize: "clamp(14px, 1.6vw, 18px)" }}>Job Information</h3>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-3 sm:gap-y-4 md:gap-y-5 lg:gap-y-6 gap-x-3 sm:gap-x-4">
-                                <div className="min-w-0">
-                                  <p className="text-gray-500 mb-1 wrap-break-word" style={{ fontSize: "clamp(11px, 1.2vw, 14px)" }}>Employment Type</p>
-                                  <p className="font-medium text-gray-900 wrap-break-word" style={{ fontSize: "clamp(13px, 1.5vw, 16px)" }}>{selectedJob.type}</p>
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-gray-500 mb-1 wrap-break-word" style={{ fontSize: "clamp(11px, 1.2vw, 14px)" }}>Work Mode</p>
-                                  <p className="font-medium text-gray-900 wrap-break-word" style={{ fontSize: "clamp(13px, 1.5vw, 16px)" }}>{selectedJob.workMode}</p>
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-gray-500 mb-1 wrap-break-word" style={{ fontSize: "clamp(11px, 1.2vw, 14px)" }}>Industry</p>
-                                  <p className="font-medium text-gray-900 wrap-break-word" style={{ fontSize: "clamp(13px, 1.5vw, 16px)" }}>{selectedJob.industry}</p>
-                                </div>
-                              </div>
-                            </section>
-
-                            {/* AI Job Fit Score Card */}
-                            <div className="mb-6 mt-6 w-full">
-                              <div className="inline-block w-full rounded-[12px] bg-gradient-to-r from-[#EFDCC8] to-[#C8E6FB] p-[2px] md:ml-0 md:w-[632px] md:min-w-[632px] lg:ml-0">
-                                <div className="box-border flex w-full flex-col items-center justify-center gap-10 rounded-[10px] bg-[rgba(241,245,249,0.92)] p-6 sm:p-8 md:h-[353px] md:flex-row md:justify-between md:gap-0 md:p-12">
-                                {/* Left Column */}
-                                <div className="flex w-full max-w-[187px] flex-col items-center gap-[37px]">
-                                  <div className="flex h-[46px] w-[187px] flex-col items-center gap-[10px]">
-                                    <span className="h-4 w-[187px] text-center text-xs font-normal leading-4 text-[#1D293D]">
-                                      AI Job Fit Score
-                                    </span>
-                                    <div className="flex min-h-5 w-[145px] items-center justify-center rounded-full bg-[#3B82F6] px-[10px] py-[2px]">
-                                      <span className="whitespace-nowrap text-[11px] font-semibold leading-4 text-[#F8FAFC] sm:text-xs">
-                                        Powered by SAASA AI
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex h-[92px] w-[92px] items-center justify-center rounded-[46px] border-8 border-[#E2E8F0]">
-                                    <span className="text-2xl font-normal leading-8 tracking-[-0.6px] text-[#0F172B]">82%</span>
-                                  </div>
-
-                                  <button
-                                    onClick={() => router.push('/cveditor')}
-                                    className="flex h-10 w-[187px] min-w-[80px] items-center justify-center gap-1 rounded-[6px] bg-gradient-to-r from-[#1D4ED8] to-[#28A8DF] px-3 py-2 transition-opacity hover:opacity-95"
-                                  >
-                                    <span className="h-6 text-sm font-medium leading-6 text-[#F8FAFC]">Improve CV for this Job</span>
-                                  </button>
-                                </div>
-
-                                {/* Right Column */}
-                                <div className="flex w-full max-w-[258px] flex-col items-start gap-[33px]">
-                                  <div className="flex w-full max-w-[258px] flex-col items-start gap-4">
-                                    <h3 className="h-4 w-[258px] text-xs font-normal uppercase leading-4 text-[#62748E]">STRENGTHS</h3>
-                                    <ul className="flex w-full max-w-[258px] flex-col gap-2 p-0">
-                                      {[
-                                        'Strong experience with React and Node.js',
-                                        'Proficient in TypeScript development',
-                                        'Experience with cloud platforms like AWS',
-                                        'Solid understanding of SQL databases',
-                                      ].map((text, i) => (
-                                        <li key={i} className="flex h-5 w-full items-center gap-2">
-                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                                            <polyline points="22 4 12 14.01 9 11.01" />
-                                          </svg>
-                                          <span className="h-4 w-[230px] text-xs font-normal leading-4 text-[#314158]">{text}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-
-                                  <div className="flex w-full max-w-[258px] flex-col items-start gap-4">
-                                    <h3 className="h-4 w-[258px] text-xs font-normal uppercase leading-4 text-[#62748E]">GAPS</h3>
-                                    <ul className="flex w-full max-w-[258px] flex-col gap-2 p-0">
-                                      {[
-                                        'Experience with cloud platforms like AWS',
-                                        'Solid understanding of SQL databases',
-                                      ].map((text, i) => (
-                                        <li key={i} className="flex h-6 w-full items-center gap-2">
-                                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <line x1="15" y1="9" x2="9" y2="15" />
-                                            <line x1="9" y1="9" x2="15" y2="15" />
-                                          </svg>
-                                          <span className="h-4 w-[230px] text-xs font-normal leading-4 text-[#314158]">{text}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                </div>
-                                </div>
-                              </div>
-                            </div>
+                            ) : null}
                           </div>
 
                           {/* Right Column: Company & Highlights */}

@@ -18,6 +18,7 @@ async function lmsFetch(url: string, options: RequestInit = {}) {
     console.warn(`LMS Client: Skipping fetch to ${url} due to missing token.`);
     return null;
   }
+  console.log(`[LMS FETCH] ${url}`, options);
 
   const res = await fetch(url, { 
     ...options, 

@@ -9,8 +9,9 @@ import { API_BASE_URL } from "@/lib/api-base";
 import { 
   Search, MapPin, ChevronRight, PlayCircle, Star, ArrowRight, CheckCircle2, 
   Sparkles, Award, FileText, Target, Mic2, UploadCloud, Zap, Clock, Briefcase, 
-  Map, UserRound, GraduationCap, ArrowUpRight, Building
+  Map, UserRound, GraduationCap, ArrowUpRight, Building, Loader2, Globe
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { SERVICES } from "@/app/services/data/services"; 
 
 // ----------------------------------------------------------------------
@@ -187,6 +188,62 @@ export default function LandingPage() {
   };
 
   const [heroSearch, setHeroSearch] = useState({ title: '', location: '' });
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [locRecommendations, setLocRecommendations] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLocSearching, setIsLocSearching] = useState(false);
+  const [showRecs, setShowRecs] = useState(false);
+  const [showLocRecs, setShowLocRecs] = useState(false);
+
+  // Job Title Recommendations
+  useEffect(() => {
+    const fetchRecs = async () => {
+      if (heroSearch.title.length < 2) {
+        setRecommendations([]);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/jobs/recommend?q=${encodeURIComponent(heroSearch.title)}`);
+        if (res.ok) {
+          const result = await res.json();
+          setRecommendations(result.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch recommendations", err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(fetchRecs, 300);
+    return () => clearTimeout(timer);
+  }, [heroSearch.title]);
+
+  // Location Recommendations
+  useEffect(() => {
+    const fetchLocRecs = async () => {
+      if (heroSearch.location.length < 1) {
+        setLocRecommendations([]);
+        return;
+      }
+      setIsLocSearching(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/jobs/location-recommend?q=${encodeURIComponent(heroSearch.location)}`);
+        if (res.ok) {
+          const result = await res.json();
+          setLocRecommendations(result.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch location recommendations", err);
+      } finally {
+        setIsLocSearching(false);
+      }
+    };
+
+    const timer = setTimeout(fetchLocRecs, 300);
+    return () => clearTimeout(timer);
+  }, [heroSearch.location]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,32 +288,202 @@ export default function LandingPage() {
                   Skip the guesswork. Our platform matches you to the right roles instantly, reveals your exact ATS score, and suggests AI-driven skill paths so you always land the offer.
                 </p>
 
-                {/* Hero Search Box */}
-                <form onSubmit={handleSearchSubmit} className="bg-white rounded-[24px] p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-200 mb-6 flex flex-col sm:flex-row gap-2 relative z-20">
-                  <div className="flex-1 flex items-center bg-slate-50/70 rounded-[16px] px-4 py-3.5 border border-transparent focus-within:bg-white focus-within:ring-4 focus-within:ring-sky-50 focus-within:border-sky-200 transition-all">
-                    <Search className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
-                    <input 
-                      type="text" 
-                      placeholder="Job title, skills, or company" 
-                      className="w-full bg-transparent border-none outline-none text-slate-800 placeholder:text-slate-400 font-semibold text-[15px]"
-                      value={heroSearch.title}
-                      onChange={e => setHeroSearch({...heroSearch, title: e.target.value})}
+                <div className="relative z-20 mb-6">
+                  <form 
+                    onSubmit={handleSearchSubmit} 
+                    className={`bg-white rounded-[24px] p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] ring-1 ring-slate-200 flex flex-col sm:flex-row gap-2 relative transition-all duration-300 ${showRecs ? 'ring-[#28A8DF30] ring-4' : ''}`}
+                  >
+                    <div className="flex-1 flex items-center bg-slate-50/70 rounded-[16px] px-4 py-3.5 border border-transparent focus-within:bg-white focus-within:ring-4 focus-within:ring-sky-50 focus-within:border-sky-200 transition-all">
+                      <Search className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
+                      <input 
+                        type="text" 
+                        placeholder="Job title, skills, or company" 
+                        className="w-full bg-transparent border-none outline-none text-slate-800 placeholder:text-slate-400 font-semibold text-[15px]"
+                        value={heroSearch.title}
+                        onChange={e => {
+                          setHeroSearch({...heroSearch, title: e.target.value});
+                          setShowRecs(true);
+                          setShowLocRecs(false);
+                        }}
+                        onFocus={() => {
+                          setShowRecs(true);
+                          setShowLocRecs(false);
+                        }}
+                      />
+                      {isSearching && <Loader2 className="w-4 h-4 text-sky-400 animate-spin ml-2" />}
+                    </div>
+
+                    <div className="flex-[0.8] items-center bg-slate-50/70 rounded-[16px] px-4 py-3.5 border border-transparent focus-within:bg-white focus-within:ring-4 focus-within:ring-sky-50 focus-within:border-sky-200 transition-all hidden sm:flex border-l border-slate-200/50 sm:border-none relative">
+                      <MapPin className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
+                      <input 
+                        type="text" 
+                        placeholder="City or Remote" 
+                        className="w-full bg-transparent border-none outline-none text-slate-800 placeholder:text-slate-400 font-semibold text-[15px]"
+                        value={heroSearch.location}
+                        onChange={e => {
+                          setHeroSearch({...heroSearch, location: e.target.value});
+                          setShowLocRecs(true);
+                          setShowRecs(false);
+                        }}
+                        onFocus={() => {
+                          setShowLocRecs(true);
+                          setShowRecs(false);
+                        }}
+                      />
+                      {isLocSearching && <Loader2 className="w-4 h-4 text-sky-400 animate-spin ml-2" />}
+                    </div>
+
+                    <button type="submit" className="bg-[#28A8DF] hover:bg-sky-500 text-white rounded-[16px] px-8 py-3.5 font-bold transition-all flex items-center justify-center shadow-lg shadow-sky-500/20 active:scale-[0.98]">
+                      Search Jobs
+                    </button>
+                  </form>
+
+                  {/* Job Recommendations Dropdown */}
+                  <AnimatePresence>
+                    {showRecs && recommendations.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                        className="absolute top-full left-0 right-0 sm:w-[450px] mt-3 bg-white/95 backdrop-blur-xl rounded-[24px] shadow-[0_25px_60px_rgba(0,0,0,0.15)] border border-slate-200 p-3 z-[100] ring-1 ring-slate-900/5 overflow-hidden"
+                      >
+                         <div className="px-4 py-2 mb-1 flex items-center justify-between border-b border-slate-100/60 pb-3">
+                           <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#28A8DF] flex items-center gap-2">
+                             <Sparkles className="w-3.5 h-3.5" /> Discovery Engine
+                           </p>
+                           <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
+                             AI Analyzed
+                           </span>
+                         </div>
+
+                         <div className="max-h-[380px] overflow-y-auto pr-1 custom-scrollbar space-y-1 mt-2">
+                           {recommendations.map((rec) => (
+                             <button
+                               key={rec.id}
+                               type="button"
+                               onClick={() => {
+                                 setHeroSearch({...heroSearch, title: rec.title});
+                                 setShowRecs(false);
+                                 router.push(`/explore-jobs?q=${encodeURIComponent(rec.title)}`);
+                               }}
+                               className="w-full text-left p-3.5 rounded-[18px] hover:bg-sky-50/50 group transition-all flex items-center justify-between relative overflow-hidden"
+                             >
+                               <div className="flex items-center gap-3 relative z-10">
+                                 <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm group-hover:bg-white group-hover:border-sky-100 group-hover:shadow-md transition-all">
+                                   {rec.logo ? (
+                                      <Image src={rec.logo} alt={rec.company} width={28} height={28} className="object-contain" />
+                                   ) : (
+                                      <Building className="w-4 h-4 text-slate-400" />
+                                   )}
+                                 </div>
+                                 <div>
+                                   <p className="text-[15px] font-bold text-slate-900 group-hover:text-sky-600 transition-colors leading-tight">{rec.title}</p>
+                                   <p className="text-[12px] font-semibold text-slate-500 mt-0.5">{rec.company} • {rec.location}</p>
+                                 </div>
+                               </div>
+                               <div className="flex items-center gap-3 relative z-10">
+                                 <div className="text-right hidden sm:block">
+                                   {rec.isAiSuggestion ? (
+                                      <span className="inline-flex rounded-lg bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[9px] font-black text-indigo-700 uppercase tracking-tighter">
+                                        AI Predicted Match
+                                      </span>
+                                   ) : (
+                                      <span className="inline-flex rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700 uppercase tracking-tighter">
+                                        {rec.matchScore}% Match
+                                      </span>
+                                   )}
+                                 </div>
+                                 <ChevronRight className="w-4 h-4 text-slate-100 group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all" />
+                               </div>
+                             </button>
+                           ))}
+                         </div>
+                         
+                         {/* Subtle fade effect */}
+                         <div className="absolute bottom-3 left-3 right-3 h-12 bg-gradient-to-t from-white/90 to-transparent pointer-events-none rounded-b-[24px]"></div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Location Recommendations Dropdown */}
+                  <AnimatePresence>
+                    {showLocRecs && locRecommendations.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                        className="absolute top-full left-0 right-0 sm:left-auto sm:w-[450px] mt-3 bg-white/95 backdrop-blur-xl rounded-[24px] shadow-[0_25px_60px_rgba(0,0,0,0.15)] border border-slate-200 p-3 z-[100] ring-1 ring-slate-900/5 overflow-hidden"
+                      >
+                         <div className="px-4 py-2 mb-1 flex items-center justify-between border-b border-slate-100/60 pb-3">
+                           <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#28A8DF] flex items-center gap-2">
+                             <Globe className="w-3.5 h-3.5" /> Worldwide Locations
+                           </p>
+                           <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
+                             15+ Discoveries
+                           </span>
+                         </div>
+                         
+                         <div className="max-h-[380px] overflow-y-auto pr-1 custom-scrollbar space-y-1 mt-2">
+                           {locRecommendations.map((loc, i) => (
+                             <button
+                               key={i}
+                               type="button"
+                               onClick={() => {
+                                 setHeroSearch({...heroSearch, location: loc.name});
+                                 setShowLocRecs(false);
+                               }}
+                               className="w-full text-left p-3.5 rounded-[18px] hover:bg-sky-50/50 group transition-all flex items-center justify-between relative overflow-hidden"
+                             >
+                               <div className="flex items-center gap-3 relative z-10">
+                                 <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm group-hover:bg-white group-hover:border-sky-100 transition-all">
+                                   {loc.name === 'Remote' ? (
+                                      <Globe className="w-4 h-4 text-sky-500" />
+                                   ) : loc.isAi ? (
+                                      <Zap className="w-4 h-4 text-amber-500 fill-amber-500/10" />
+                                   ) : (
+                                      <Building className="w-4 h-4 text-slate-400" />
+                                   )}
+                                 </div>
+                                 <div className="flex flex-col">
+                                   <p className="text-[15px] font-bold text-slate-900 group-hover:text-sky-600 transition-colors leading-tight">{loc.name}</p>
+                                   <p className="text-[11px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">{loc.isAi ? 'Global Reach' : loc.isDb ? 'Open Roles' : 'Economic Hub'}</p>
+                                 </div>
+                               </div>
+                               
+                               <div className="flex items-center gap-2 relative z-10">
+                                 {loc.isAi && (
+                                    <span className="inline-flex rounded-lg bg-amber-50 border border-amber-100 px-2 py-1 text-[9px] font-black text-amber-700 uppercase tracking-tighter">
+                                      AI Recommended
+                                    </span>
+                                 )}
+                                 {loc.isDb && (
+                                    <span className="inline-flex rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700 uppercase tracking-tighter">
+                                      {Math.floor(Math.random() * 20) + 5}+ Jobs
+                                    </span>
+                                 )}
+                                 <ChevronRight className="w-4 h-4 text-slate-100 group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all" />
+                               </div>
+                             </button>
+                           ))}
+                         </div>
+                         
+                         {/* Subtle fade effect at bottom of scroll */}
+                         <div className="absolute bottom-3 left-3 right-3 h-12 bg-gradient-to-t from-white/90 to-transparent pointer-events-none rounded-b-[24px]"></div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Click outside to close */}
+                  {(showRecs || showLocRecs) && (
+                    <div 
+                      className="fixed inset-0 z-0" 
+                      onClick={() => {
+                        setShowRecs(false);
+                        setShowLocRecs(false);
+                      }}
                     />
-                  </div>
-                  <div className="flex-[0.8] items-center bg-slate-50/70 rounded-[16px] px-4 py-3.5 border border-transparent focus-within:bg-white focus-within:ring-4 focus-within:ring-sky-50 focus-within:border-sky-200 transition-all hidden sm:flex border-l border-slate-200/50 sm:border-none">
-                    <MapPin className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
-                    <input 
-                      type="text" 
-                      placeholder="City or Remote" 
-                      className="w-full bg-transparent border-none outline-none text-slate-800 placeholder:text-slate-400 font-semibold text-[15px]"
-                      value={heroSearch.location}
-                      onChange={e => setHeroSearch({...heroSearch, location: e.target.value})}
-                    />
-                  </div>
-                  <button type="submit" className="bg-[#28A8DF] hover:bg-sky-500 text-white rounded-[16px] px-8 py-3.5 font-bold transition-all flex items-center justify-center shadow-lg shadow-sky-500/20 active:scale-[0.98]">
-                    Search Jobs
-                  </button>
-                </form>
+                  )}
+                </div>
 
                 <div className="flex flex-wrap flex-col sm:flex-row items-center sm:items-center gap-3 justify-center sm:justify-start">
                   <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Popular:</span>

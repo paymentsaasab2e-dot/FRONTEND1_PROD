@@ -94,7 +94,7 @@ function LmsLayoutInner({ children }: { children: ReactNode }) {
                     href={href}
                     className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all duration-300 ${active
                       ? 'bg-[#28A8E1] text-white shadow-md shadow-[#28A8E1]/20 scale-[1.02]'
-                      : 'bg-slate-50 text-slate-600 border border-slate-200/60 hover:bg-slate-100 hover:text-slate-900'
+                      : 'bg-slate-50 text-black border border-slate-200/60 hover:bg-slate-100 hover:text-black'
                       }`}
                   >
                     <Icon className={`h-4 w-4 shrink-0 transition-opacity ${active ? 'opacity-100' : 'opacity-70'}`} strokeWidth={active ? 2.5 : 2} />
@@ -122,7 +122,7 @@ function LmsLayoutInner({ children }: { children: ReactNode }) {
                     href={href}
                     className={`flex items-center gap-3 rounded-xl px-4 py-3 text-[0.95rem] font-bold transition-all duration-200 group ${active
                       ? 'bg-gradient-to-r from-[#28A8E1] to-[#1e85b4] text-white shadow-md shadow-[#28A8E1]/20'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent hover:border-slate-200/50'
+                      : 'text-black hover:bg-slate-50 hover:text-black border border-transparent hover:border-slate-200/50'
                       }`}
                   >
                     <Icon className={`h-4 w-4 shrink-0 transition-transform ${active ? 'opacity-100 scale-110' : 'opacity-60 group-hover:scale-110 group-hover:opacity-100'}`} strokeWidth={active ? 2.5 : 2} />
@@ -137,8 +137,8 @@ function LmsLayoutInner({ children }: { children: ReactNode }) {
             <div className={LMS_CONTENT_CLASS}>
               <LmsCareerEngineStrip />
               <div className="relative isolate px-6 pt-14 lg:px-8">
-                <LmsDailyMomentum />
-                <LmsSharedIntelligenceHint />
+                {pathname === '/lms' && <LmsDailyMomentum />}
+                {pathname !== '/lms/interview-prep' && pathname !== '/lms/courses' && <LmsSharedIntelligenceHint />}
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out fill-mode-both">
                   {children}
                 </div>

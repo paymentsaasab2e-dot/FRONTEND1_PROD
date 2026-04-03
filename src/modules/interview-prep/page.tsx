@@ -85,7 +85,7 @@ export default function InterviewPrepModulePage() {
   }, [generatedSet]);
 
   return (
-    <div className="space-y-8 pb-2">
+    <div className="space-y-8 pb-2 -mt-8">
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-wider text-violet-700">AI interview operating system</p>
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mt-1 tracking-tight">Interview preparation</h1>
@@ -104,9 +104,7 @@ export default function InterviewPrepModulePage() {
         onNextAction={() => router.push('/lms/interview-prep/mock-session?role=Frontend%20Developer&diff=Intermediate')}
       />
 
-      <TodayFocusCard items={data.todayFocus} onStartNow={() => router.push('/lms/quizzes')} />
 
-      <AIInsightBar message={data.aiInsight} />
 
       <QuestionGeneratorGrid
         items={data.questionGenerator}
@@ -120,8 +118,8 @@ export default function InterviewPrepModulePage() {
         difficulty={mockConfig.difficulty}
         role={mockConfig.role}
         onChangeConfig={(next) => setMockConfig(next)}
-        onStartMock={() => {
-          const cfg = onStartMock();
+        onStartMock={async () => {
+          const cfg = await onStartMock();
           overlay.openSheet({
             title: 'Start mock interview',
             description: 'Frontend-only launch flow (mock).',

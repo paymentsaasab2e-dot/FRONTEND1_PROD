@@ -82,24 +82,58 @@ export function useInterviewPrep() {
     return mockConfig;
   }, [mockConfig]);
 
-  const onGenerateQuestions = useCallback((type: string) => {
-    const questions = generateMockQuestions(type);
-    const set: QuestionSet = {
-      id: `set-${Date.now()}`,
-      kind: type,
-      questions,
-      createdAt: Date.now()
-    };
-    setGeneratedSet(set);
-    
-    // Auto-save to local history so we can route to it
-    setSavedSets(prev => {
-      const next = [set, ...prev];
-      try { localStorage.setItem('ip:sets', JSON.stringify(next)); } catch {}
-      return next;
-    });
+  const onGenerateQuestions = useCallback(async (query: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/lms/questions/generate-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: query }),
+      });
 
-    return set;
+      if (!res.ok) throw new Error('AI Generation failed');
+      const aiData = await res.json();
+      
+      const questions = aiData.questions.map((q: any, i: number) => ({
+        id: `ai-q-${Date.now()}-${i}`,
+        category: q.type || 'technical',
+        prompt: q.question,
+        hint: q.expectedAnswer ? `Expected: ${q.expectedAnswer}` : `Focus on ${q.skillTag || 'core concepts'}.`,
+        followUp: q.followUp ? [q.followUp] : ['How would you scale or test this?'], 
+        difficulty: q.difficulty,
+        rubric: q.evaluationCriteria || `Assessing expertise for a ${aiData.experienceLevel || 'Mid'} ${aiData.role || 'Developer'}.`
+      }));
+
+      const set: QuestionSet = {
+        id: `set-${Date.now()}`,
+        kind: label,
+        questions,
+        createdAt: Date.now()
+      };
+      
+      setGeneratedSet(set);
+      
+      setSavedSets(prev => {
+        const next = [set, ...prev];
+        try { localStorage.setItem('ip:sets', JSON.stringify(next)); } catch {}
+        return next;
+      });
+
+      return set;
+    } catch (err) {
+      console.error('Failed to generate custom set:', err);
+      // Fallback
+      const fallbackSet: QuestionSet = {
+        id: `set-${Date.now()}`,
+        kind: 'Fallback Set',
+        questions: generateMockQuestions('technical'),
+        createdAt: Date.now()
+      };
+      setGeneratedSet(fallbackSet);
+      return fallbackSet;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const onAddToPlan = useCallback((topic: string | string[]) => {
