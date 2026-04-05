@@ -38,6 +38,9 @@ export const API_BASE_URL = (() => {
 export const API_ORIGIN = (() => {
   // If NEXT_PUBLIC_API_URL is set, derive origin from it
   if (process.env.NEXT_PUBLIC_API_URL) {
+    if (process.env.NEXT_PUBLIC_API_URL.trim().startsWith('/')) {
+      return '';
+    }
     return process.env.NEXT_PUBLIC_API_URL
       .trim()
       .replace(/\/api\/?$/, '');
@@ -49,4 +52,22 @@ export const API_ORIGIN = (() => {
 
   return LOCAL_API_ORIGIN;
 })();
+
+export const resolveApiAssetUrl = (value: string | null | undefined): string => {
+  if (!value) return '';
+
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  if (
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://')
+  ) {
+    return trimmed;
+  }
+
+  const normalizedPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return API_ORIGIN ? `${API_ORIGIN}${normalizedPath}` : normalizedPath;
+};
 

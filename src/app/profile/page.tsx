@@ -96,7 +96,7 @@ import CareerPreferencesModal, { CareerPreferencesData } from '../../components/
 import VisaWorkAuthorizationModal, { VisaWorkAuthorizationData } from '../../components/modals/VisaWorkAuthorizationModal';
 import VaccinationModal, { VaccinationData } from '../../components/modals/VaccinationModal';
 import ResumeModal, { ResumeData as BaseResumeData } from '../../components/modals/ResumeModal';
-import { API_BASE_URL } from '@/lib/api-base';
+import { API_BASE_URL, resolveApiAssetUrl } from '@/lib/api-base';
 
 // Extended ResumeData interface for profile page
 interface ResumeData extends BaseResumeData {
@@ -237,9 +237,7 @@ export default function ProfilePage() {
 
   const resolveProfileDocHref = (doc: unknown): string => {
     const url = getDocumentUrl(doc);
-    return url.startsWith('http')
-      ? url
-      : `${API_BASE_URL.replace('/api', '')}${url}`;
+    return resolveApiAssetUrl(url);
   };
 
   const serializeMaybeFile = (value?: File | string) => {

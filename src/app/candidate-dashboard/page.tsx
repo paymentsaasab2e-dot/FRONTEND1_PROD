@@ -11,6 +11,7 @@ import {
   fetchProfileCompleteness,
   ProfileCompletenessResponse,
 } from "@/lib/profile-completion";
+import { resolveApiAssetUrl } from "@/lib/api-base";
 
 interface DashboardData {
   profile: {
@@ -1052,9 +1053,7 @@ export default function CandidateDashboardPage() {
                         if (photoUrl.startsWith("data:") || photoUrl.startsWith("http://") || photoUrl.startsWith("https://")) {
                         imageSrc = photoUrl;
                       } else {
-                          const baseUrl = API_BASE_URL.replace("/api", "");
-                          const cleanPath = photoUrl.startsWith("/") ? photoUrl : `/${photoUrl}`;
-                        imageSrc = `${baseUrl}${cleanPath}`;
+                        imageSrc = resolveApiAssetUrl(photoUrl);
                       }
                       }
                       return imageSrc ? (

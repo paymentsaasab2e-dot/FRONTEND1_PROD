@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { API_BASE_URL } from '@/lib/api-base';
+import { API_BASE_URL, resolveApiAssetUrl } from '@/lib/api-base';
 
 // Form types
 interface LanguageEntry {
@@ -403,9 +403,7 @@ export default function PersonalDetailsPage() {
               } else if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
                 imageSrc = photoUrl;
               } else {
-                const baseUrl = API_BASE_URL.replace('/api', '');
-                const cleanPath = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`;
-                imageSrc = `${baseUrl}${cleanPath}`;
+                imageSrc = resolveApiAssetUrl(photoUrl);
               }
               setProfilePhotoUrl(imageSrc);
             }
@@ -470,9 +468,7 @@ export default function PersonalDetailsPage() {
           } else if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
             imageSrc = photoUrl;
           } else {
-            const baseUrl = API_BASE_URL.replace('/api', '');
-            const cleanPath = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`;
-            imageSrc = `${baseUrl}${cleanPath}`;
+            imageSrc = resolveApiAssetUrl(photoUrl);
           }
           setProfilePhotoUrl(imageSrc);
           alert('Profile photo uploaded successfully!');

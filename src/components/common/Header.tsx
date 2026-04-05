@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 
-import { API_BASE_URL } from '@/lib/api-base';
+import { API_BASE_URL, resolveApiAssetUrl } from '@/lib/api-base';
 import NotificationPanel from '@/components/common/NotificationPanel';
 import ProfilePanel from '@/components/common/ProfilePanel';
 import GlobalAIAssistant from '@/components/common/GlobalAIAssistant';
@@ -108,9 +108,7 @@ export default function Header({ showNav = true }: { showNav?: boolean }) {
                                     setProfilePhotoUrl(imageSrc);
                                 } else {
                                     // Construct full URL for relative paths
-                                    const baseUrl = API_BASE_URL.replace('/api', '');
-                                    const cleanPath = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`;
-                                    imageSrc = `${baseUrl}${cleanPath}`;
+                                    imageSrc = resolveApiAssetUrl(photoUrl);
 
                                     // Validate URL before setting (skip validation for data URLs)
                                     try {
